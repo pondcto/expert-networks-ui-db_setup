@@ -1,0 +1,27 @@
+# Core FastAPI and server
+fastapi>=0.104.1
+uvicorn[standard]>=0.24.0
+asyncpg>=0.30.0
+
+# OpenAI LLM integration
+openai>=1.0.0
+
+# Environment variables
+python-dotenv>=1.0.0
+
+# JSON and data handling
+pydantic>=2.0.0
+
+# Excel export support
+openpyxl>=3.1.0
+pandas>=2.0.0
+
+# Redis
+redis>=5.0.0
+
+# authentication
+
+# db migration
+alembic>=1.16.0
+SQLAlchemy>=2.0.41
+psycopg2-binary>=2.9.0  # For simple SQL migration runner

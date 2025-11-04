@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(nul)",
+      "Bash(where:*)",
+      "Bash(python run_migrations.py:*)",
+      "Bash(python:*)",
+      "Bash(curl:*)",
+      "Bash(psql:*)",
+      "Bash(pg_dump:*)",
+      "Bash(npm install)",
+      "Bash(npm run dev)",
+      "Bash(npx next dev --turbo -p 3010)",
+      "Bash(npm install:*)",
+      "Bash(taskkill:*)",
+      "Bash(ragdb_full_dump.sql)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
