@@ -560,7 +560,6 @@ BETTER_AUTH_URL=http://localhost:3000
 # LLM API
 ANTHROPIC_API_KEY=your-anthropic-api-key
 # OR
-OPENAI_API_KEY=your-openai-api-key
 
 # Optional: Background job processing
 REDIS_URL=redis://localhost:6379

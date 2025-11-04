@@ -91,7 +91,6 @@ NEXTAUTH_URL=http://localhost:3000
 
 # LLM API (choose one or both for fallback)
 ANTHROPIC_API_KEY=sk-ant-your-key-here
-# OPENAI_API_KEY=sk-your-openai-key-here  # Optional fallback
 
 # Optional: For real-time updates
 PUSHER_APP_ID=your-pusher-app-id
