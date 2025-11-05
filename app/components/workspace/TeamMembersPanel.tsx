@@ -327,7 +327,7 @@ export default function TeamMembersPanel({
             </div>
           ) : currentMembers.length === 0 ? (
             <div className="text-center py-4 text-light-text-secondary dark:text-dark-text-secondary text-sm">
-              No team members assigned yet. Click "Invite more members" to add team members.
+              No team members assigned yet. Click &quot;Invite more members&quot; to add team members.
             </div>
           ) : (
             <div className="space-y-2">
