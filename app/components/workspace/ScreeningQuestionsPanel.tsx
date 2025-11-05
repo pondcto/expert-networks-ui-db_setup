@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Plus, Edit2, Trash2, Circle, Dot } from "lucide-react";
 import { useCampaign } from "../../lib/campaign-context";
 import * as api from "../../lib/api-client";
@@ -14,14 +14,12 @@ export interface ScreeningQuestion {
 export interface ScreeningQuestionsPanelProps {
   questions?: ScreeningQuestion[];
   onAddQuestion?: (question: ScreeningQuestion) => void;
-  onImportQuestions?: () => void;
   onDataChange?: (data: ScreeningQuestion[]) => void;
 }
 
 export default function ScreeningQuestionsPanel({
   questions = [],
   onAddQuestion,
-  onImportQuestions,
   onDataChange,
 }: ScreeningQuestionsPanelProps) {
   const { campaignData, isNewCampaign } = useCampaign();
@@ -34,14 +32,14 @@ export default function ScreeningQuestionsPanel({
   const [newSubQuestionText, setNewSubQuestionText] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Convert backend format to frontend format
-  const convertBackendToFrontend = (backendQuestions: api.ScreeningQuestion[]): ScreeningQuestion[] => {
+  // Convert backend format to frontend format (recursive, memoized to avoid dependency issues)
+  const convertBackendToFrontend = useCallback((backendQuestions: api.ScreeningQuestion[]): ScreeningQuestion[] => {
     return backendQuestions.map(q => ({
       id: q.id,
       text: q.question_text,
       subQuestions: q.sub_questions ? convertBackendToFrontend(q.sub_questions) : undefined
     }));
-  };
+  }, []);
 
 
   // Reset to empty for new campaigns and sync with campaignData
@@ -76,7 +74,7 @@ export default function ScreeningQuestionsPanel({
     };
     
     loadQuestions();
-  }, [campaignData?.id, isNewCampaign, editingQuestionId]);
+  }, [campaignData?.id, isNewCampaign, editingQuestionId, convertBackendToFrontend, onDataChange]);
 
   // Save questions to database - simplified version that replaces all questions
   const saveQuestionsToDatabase = async (questionsToSave: ScreeningQuestion[]) => {

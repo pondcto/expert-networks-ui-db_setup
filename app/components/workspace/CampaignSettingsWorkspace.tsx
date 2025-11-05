@@ -129,33 +129,11 @@ export default function CampaignSettingsWorkspace() {
     console.log('Vendor panel focused - waiting for user to click Create Campaign');
   };
 
-  // Navigation handlers (temporarily unused)
-  const _handleNavigateToSettings = () => {
-    if (campaignData?.id) {
-      router.push(`/campaign/${campaignData.id}/settings`);
-    }
-  };
-
-  const _handleNavigateToExperts = () => {
-    if (campaignData?.id) {
-      router.push(`/campaign/${campaignData.id}/experts`);
-    }
-  };
-
-  const _handleNavigateToInterviews = () => {
-    if (campaignData?.id) {
-      router.push(`/campaign/${campaignData.id}/interviews`);
-    }
-  };
-
   // Get campaign name for display
   const getCampaignName = () => {
     if (isNewCampaign) return "New Campaign";
     return campaignData?.campaignName || "Campaign";
   };
-
-  // Check if we're in a campaign route
-  const isCampaignRoute = pathname?.includes('/campaign/') && !pathname?.includes('/new');
 
   // Initialize campaign data for new campaigns (only if not already set by parent)
   useEffect(() => {

@@ -41,34 +41,7 @@ export default function CampaignInterviewsWorkspace() {
   const setActivitiesWidth = (value: number) => setPanelSizing(prev => ({ ...prev, activitiesWidth: value }));
   const setSourcesWidth = (value: number) => setPanelSizing(prev => ({ ...prev, sourcesWidth: value }));
 
-  // Form completion states (temporarily unused)
-  const [_campaignBasicsCompleted, _setCampaignBasicsCompleted] = useState<boolean>(false);
-  const [_scopeRefinementCompleted, _setScopeRefinementCompleted] = useState<boolean>(false);
-
-  // Reset form completion states when starting a new campaign
-  useEffect(() => {
-    if (isNewCampaign) {
-      _setCampaignBasicsCompleted(false);
-      _setScopeRefinementCompleted(false);
-    }
-  }, [isNewCampaign]);
-
   // Campaign data handlers
-  const _handleCampaignDataChange = (data: Partial<CampaignData>) => {
-    console.log('Campaign data change:', data);
-    setCampaignData((prev: CampaignData | null) => {
-      if (!prev) {
-        return data as CampaignData;
-      }
-      const updated = {
-        ...prev,
-        ...data
-      } as CampaignData;
-      console.log('Updated campaign data:', updated);
-      return updated;
-    });
-  };
-
   const _handleSaveCampaign = async () => {
     try {
       // Ensure all current form data is saved before proceeding
@@ -102,33 +75,11 @@ export default function CampaignInterviewsWorkspace() {
     }
   };
 
-  // Navigation handlers (temporarily unused)
-  const _handleNavigateToSettings = () => {
-    if (campaignData?.id) {
-      router.push(`/campaign/${campaignData.id}/settings`);
-    }
-  };
-
-  const _handleNavigateToExperts = () => {
-    if (campaignData?.id) {
-      router.push(`/campaign/${campaignData.id}/experts`);
-    }
-  };
-
-  const _handleNavigateToInterviews = () => {
-    if (campaignData?.id) {
-      router.push(`/campaign/${campaignData.id}/interviews`);
-    }
-  };
-
   // Get campaign name for display
   const getCampaignName = () => {
     if (isNewCampaign) return "New Campaign";
     return campaignData?.campaignName || "Campaign";
   };
-
-  // Check if we're in a campaign route
-  const isCampaignRoute = pathname?.includes('/campaign/') && !pathname?.includes('/new');
 
   // Initialize campaign data for new campaigns (only if not already set by parent)
   useEffect(() => {

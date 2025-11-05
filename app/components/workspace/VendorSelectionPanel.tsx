@@ -38,7 +38,6 @@ export default function VendorSelectionPanel({
   const [selectedVendor, setSelectedVendor] = useState<VendorPlatform | null>(null);
   const [showEnrollmentModal, setShowEnrollmentModal] = useState<boolean>(false);
   const [vendorToEnroll, setVendorToEnroll] = useState<VendorPlatform | null>(null);
-  const [pendingVendors, setPendingVendors] = useState<Set<string>>(new Set());
   const [sortColumn, setSortColumn] = useState<'rank' | 'overallScore' | 'avgCostPerCall' | 'status' | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [loading, setLoading] = useState(true);

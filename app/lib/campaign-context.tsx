@@ -42,12 +42,12 @@ export function CampaignProvider({ children }: { children: React.ReactNode }) {
   const [campaignData, setCampaignData] = useState<CampaignData | null>(null);
   const [isNewCampaign, setIsNewCampaign] = useState(true);
 
-  // Generate a 16-digit hexadecimal campaign ID
-  const generateCampaignId = (): string => {
-    return Array.from({ length: 16 }, () => 
-      Math.floor(Math.random() * 16).toString(16)
-    ).join('');
-  };
+  // Generate a 16-digit hexadecimal campaign ID (kept for future use)
+  // const generateCampaignId = (): string => {
+  //   return Array.from({ length: 16 }, () => 
+  //     Math.floor(Math.random() * 16).toString(16)
+  //   ).join('');
+  // };
 
   // Memoize saveCampaign to prevent infinite loops in components that depend on it
   const saveCampaign = useCallback(async (dataToSave?: Partial<CampaignData>): Promise<string> => {
@@ -141,7 +141,7 @@ export function CampaignProvider({ children }: { children: React.ReactNode }) {
         if (mergedData.screeningQuestions && Array.isArray(mergedData.screeningQuestions) && mergedData.screeningQuestions.length > 0) {
           try {
             // Import screening questions API
-            const { getScreeningQuestions, createScreeningQuestion } = await import('./api-client');
+            const { createScreeningQuestion } = await import('./api-client');
             
             // Create root questions first
             const questionIdMap = new Map<string, string>();

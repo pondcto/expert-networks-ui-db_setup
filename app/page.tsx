@@ -951,6 +951,8 @@ function HomeContent() {
   useEffect(() => {
     const grouped = groupCampaignsByProject();
     setGroupedProjects(grouped);
+    // groupCampaignsByProject is defined in the component and depends on campaigns/projects
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [campaigns, projects]);
 
   // Calculate campaign status based on dates

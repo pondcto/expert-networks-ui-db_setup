@@ -58,10 +58,12 @@ async function handleResponse<T>(response: Response): Promise<T> {
           errorData = JSON.parse(responseText);
           
           // Try to extract error message from various fields
-          const extracted = extractString(errorData.detail) || 
-                           extractString(errorData.message) || 
-                           extractString(errorData.error) || 
-                           extractString(errorData.msg) ||
+          // Type guard: errorData is now an object with potentially unknown properties
+          const errorObj = errorData as Record<string, unknown>;
+          const extracted = extractString(errorObj.detail) || 
+                           extractString(errorObj.message) || 
+                           extractString(errorObj.error) || 
+                           extractString(errorObj.msg) ||
                            extractString(errorData);
           
           if (extracted && extracted.trim()) {
@@ -71,7 +73,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
           } else {
             errorMessage = `${statusText}: ${url}`;
           }
-        } catch (parseError) {
+        } catch {
           // Not JSON, use text as-is (limit length)
           if (responseText.trim()) {
             errorMessage = responseText.trim().substring(0, 200);
@@ -142,11 +144,11 @@ async function handleResponse<T>(response: Response): Promise<T> {
     // Try to parse as JSON
     try {
       return JSON.parse(text) as T;
-    } catch (parseError) {
+    } catch {
       // If parsing fails, log warning and return empty object
       const contentType = response.headers.get('content-type');
       if (contentType && contentType.includes('application/json')) {
-        console.warn('Failed to parse JSON response:', parseError, 'Response text:', text.substring(0, 100));
+        console.warn('Failed to parse JSON response. Response text:', text.substring(0, 100));
       }
       return {} as T;
     }
@@ -203,9 +205,9 @@ async function apiRequest<T>(
             }
           });
         }
-      } catch (parseError) {
+      } catch {
         // If parsing fails, use body as-is
-        console.warn('Failed to parse request body:', parseError);
+        console.warn('Failed to parse request body');
       }
     }
     

@@ -4,7 +4,7 @@ export function validateCampaignBasics(data: Partial<CampaignData>): boolean {
   return !!(data.campaignName && data.campaignName.trim().length > 0);
 }
 
-export function validateScopeRefinement(data: Partial<CampaignData>): boolean {
+export function validateScopeRefinement(_data: Partial<CampaignData>): boolean {
   // Add your Campaign Scope validation logic here
   return true;
 }

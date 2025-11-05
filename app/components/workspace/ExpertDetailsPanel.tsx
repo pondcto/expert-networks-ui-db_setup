@@ -56,8 +56,6 @@ export default function ExpertDetailsPanel({ selectedExpert, expert, hasExperts 
     communication: 0
   });
   const [reviewText, setReviewText] = useState("");
-  const [sameInternalPublic, setSameInternalPublic] = useState(true);
-  const [showReviews, setShowReviews] = useState(true);
   // Default expert data (John Doe from the image)
   const defaultExpert = {
     name: "John Doe",

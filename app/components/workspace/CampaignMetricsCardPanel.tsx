@@ -10,7 +10,6 @@ export default function CampaignMetricsCardPanel() {
   const [scheduling, setScheduling] = useState(0);
   const [scheduledCount, setScheduledCount] = useState(0);
   const [completedCount, setCompletedCount] = useState(0);
-  const [cancelledCount, setCancelledCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -40,7 +39,8 @@ export default function CampaignMetricsCardPanel() {
 
         setScheduledCount(scheduledResponse.total || 0);
         setCompletedCount(completedResponse.total || 0);
-        setCancelledCount(cancelledResponse.total || 0);
+        // cancelledCount is not currently displayed in the UI
+        // const cancelledCount = cancelledResponse.total || 0;
       } catch (error) {
         console.error('Error loading campaign metrics:', error);
       } finally {

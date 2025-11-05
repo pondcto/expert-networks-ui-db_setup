@@ -55,7 +55,10 @@ export default function ProposedExpertsPanel({ onExpertSelect, selectedExpertId,
       return { experts: [], total: 0 };
     }
 
-    const vendorsData = vendors || await api.getVendors();
+    // Ensure vendors are loaded, use existing vendors if available
+    if (!vendors) {
+      await api.getVendors();
+    }
     const expertsResponse = await api.getExperts({ campaign_id: campaignData.id });
     
     // Convert API experts to ProposedExpert format
@@ -121,26 +124,27 @@ export default function ProposedExpertsPanel({ onExpertSelect, selectedExpertId,
     return vendors?.find(vendor => vendor.id === vendorId);
   };
 
-  const _handleExpertSelect = (expertId: string) => {
-    const newSelected = new Set(selectedExperts);
-    if (newSelected.has(expertId)) {
-      newSelected.delete(expertId);
-    } else {
-      newSelected.add(expertId);
-    }
-    setSelectedExperts(newSelected);
-    setSelectAll(newSelected.size === experts.length);
-  };
+  // Selection handlers are kept for future use
+  // const _handleExpertSelect = (expertId: string) => {
+  //   const newSelected = new Set(selectedExperts);
+  //   if (newSelected.has(expertId)) {
+  //     newSelected.delete(expertId);
+  //   } else {
+  //     newSelected.add(expertId);
+  //   }
+  //   setSelectedExperts(newSelected);
+  //   setSelectAll(newSelected.size === experts.length);
+  // };
 
-  const _handleSelectAll = () => {
-    if (selectAll) {
-      setSelectedExperts(new Set());
-      setSelectAll(false);
-    } else {
-      setSelectedExperts(new Set(experts.map(expert => expert.id)));
-      setSelectAll(true);
-    }
-  };
+  // const _handleSelectAll = () => {
+  //   if (selectAll) {
+  //     setSelectedExperts(new Set());
+  //     setSelectAll(false);
+  //   } else {
+  //     setSelectedExperts(new Set(experts.map(expert => expert.id)));
+  //     setSelectAll(true);
+  //   }
+  // };
 
   const getStatusColor = (status: string) => {
     switch (status) {

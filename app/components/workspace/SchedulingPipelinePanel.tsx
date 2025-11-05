@@ -123,7 +123,7 @@ export default function SchedulingPipelinePanel() {
                     </div>
                 ) : (
                 <div className="space-y-1">
-                    {experts.slice(0, 7).map((pe, index) => {
+                    {experts.slice(0, 7).map((pe) => {
                         const vendor = vendors.find(v => v.id === pe.vendor_id);
                         const schedulingStatus = getSchedulingStatus(pe.id);
                         

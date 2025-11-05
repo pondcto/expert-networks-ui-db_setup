@@ -102,6 +102,7 @@ export default function InterviewCalendarPanel() {
 
   const getInterviewsForDay = useCallback((date: Date): Interview[] => {
     return interviews.filter(interview => isSameDay(interview.date, date));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [interviews]);
 
   const isPastDay = useCallback((date: Date): boolean => {
@@ -117,12 +118,12 @@ export default function InterviewCalendarPanel() {
     return COLOR_TAGS[color as ColorTag];
   }, []);
 
-  const getExpertColorDot = useCallback((color: string): string => {
-    if (!(color in COLOR_DOTS)) {
-      return COLOR_DOTS.gray;
-    }
-    return COLOR_DOTS[color as ColorTag];
-  }, []);
+  // const getExpertColorDot = useCallback((color: string): string => {
+  //   if (!(color in COLOR_DOTS)) {
+  //     return COLOR_DOTS.gray;
+  //   }
+  //   return COLOR_DOTS[color as ColorTag];
+  // }, []);
 
   // Loading state
   if (loading) {
@@ -248,12 +249,12 @@ export default function InterviewCalendarPanel() {
                 const isCurrentDay = isToday(day);
                 
                 // Check if this time slot is occupied by the single interview
-                const _isOccupied = dayInterviews.some(interview => {
-                  const startIndex = getTimeSlotPosition(interview.time);
-                  const durationSlots = interview.duration / 60;
-                  const occupiedSlots = Array.from({ length: durationSlots }, (_, i) => startIndex + i);
-                  return occupiedSlots.includes(timeIndex);
-                });
+                // const _isOccupied = dayInterviews.some(interview => {
+                //   const startIndex = getTimeSlotPosition(interview.time);
+                //   const durationSlots = interview.duration / 60;
+                //   const occupiedSlots = Array.from({ length: durationSlots }, (_, i) => startIndex + i);
+                //   return occupiedSlots.includes(timeIndex);
+                // });
                 
                 return (
                   <div
