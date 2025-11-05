@@ -146,7 +146,7 @@ export function CampaignProvider({ children }: { children: React.ReactNode }) {
             // Create root questions first
             const questionIdMap = new Map<string, string>();
             for (let i = 0; i < mergedData.screeningQuestions.length; i++) {
-              const q = mergedData.screeningQuestions[i] as any;
+              const q = mergedData.screeningQuestions[i] as { id?: string; text?: string; subQuestions?: Array<{ text?: string }> };
               if (q.text) {
                 const created = await createScreeningQuestion(newCampaign.id, {
                   campaign_id: newCampaign.id, // Required by backend model
@@ -186,7 +186,7 @@ export function CampaignProvider({ children }: { children: React.ReactNode }) {
             
             // Assign each team member to the campaign
             for (const member of mergedData.teamMembers) {
-              const memberId = (member as any).id;
+              const memberId = (member as { id?: string }).id;
               if (memberId) {
                 await assignTeamMemberToCampaign(newCampaign.id, memberId);
               }
@@ -229,7 +229,7 @@ export function CampaignProvider({ children }: { children: React.ReactNode }) {
       const campaign = await api.getCampaign(campaignId);
       
       // Load screening questions
-      let screeningQuestions: any[] = [];
+      let screeningQuestions: Array<{ id: string; text: string; subQuestions?: Array<{ id: string; text: string }> }> = [];
       try {
         const { getScreeningQuestions } = await import('./api-client');
         const backendQuestions = await getScreeningQuestions(campaignId);
@@ -247,7 +247,7 @@ export function CampaignProvider({ children }: { children: React.ReactNode }) {
       }
       
       // Load team members
-      let teamMembers: any[] = [];
+      let teamMembers: Array<{ id: string; name: string; designation: string; avatar: string }> = [];
       try {
         const { getCampaignTeamMembers } = await import('./api-client');
         const backendMembers = await getCampaignTeamMembers(campaignId);

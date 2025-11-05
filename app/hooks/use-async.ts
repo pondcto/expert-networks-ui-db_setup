@@ -10,7 +10,7 @@ export interface UseAsyncReturn<T> {
   data: T | null;
   loading: boolean;
   error: Error | null;
-  execute: (...args: any[]) => Promise<T | null>;
+  execute: (...args: unknown[]) => Promise<T | null>;
   reset: () => void;
 }
 
@@ -18,7 +18,7 @@ export interface UseAsyncReturn<T> {
  * Custom hook for handling async operations with loading and error states
  */
 export function useAsync<T>(
-  asyncFunction: (...args: any[]) => Promise<T>,
+  asyncFunction: (...args: unknown[]) => Promise<T>,
   options: UseAsyncOptions<T> = {}
 ): UseAsyncReturn<T> {
   const { immediate = false, onSuccess, onError } = options;
@@ -35,7 +35,7 @@ export function useAsync<T>(
   }, []);
 
   const execute = useCallback(
-    async (...args: any[]): Promise<T | null> => {
+    async (...args: unknown[]): Promise<T | null> => {
       try {
         setLoading(true);
         setError(null);

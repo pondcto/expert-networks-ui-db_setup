@@ -60,9 +60,10 @@ export default function LoginPage() {
         // Success - redirect to dashboard
         router.push('/dashboard');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Login failed:', err);
-      setError(err.message || 'Failed to sign in. Please check your credentials.');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to sign in. Please check your credentials.';
+      setError(errorMessage);
       setLoading(false);
     }
   };
@@ -75,7 +76,7 @@ export default function LoginPage() {
         provider: 'google',
         callbackURL: '/dashboard',
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Google login failed:', err);
       setError('Failed to sign in with Google. Please try again.');
       setLoading(false);
@@ -90,7 +91,7 @@ export default function LoginPage() {
         provider: 'microsoft',
         callbackURL: '/dashboard',
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Microsoft login failed:', err);
       setError('Failed to sign in with Microsoft. Please try again.');
       setLoading(false);
@@ -221,7 +222,7 @@ export default function LoginPage() {
 
         {/* Signup Link */}
         <p className="text-center text-sm text-light-text-secondary dark:text-dark-text-secondary">
-          Don't have an account?{' '}
+          Don&apos;t have an account?{' '}
           <Link
             href="/signup"
             className="font-medium text-primary-500 hover:text-primary-600 transition-colors"

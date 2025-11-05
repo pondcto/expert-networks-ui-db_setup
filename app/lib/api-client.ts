@@ -10,7 +10,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const DEMO_USER_ID = 'demo-user-123';
 
 // Helper to safely extract string from error value
-function extractString(value: any): string | null {
+function extractString(value: unknown): string | null {
   if (value === null || value === undefined) return null;
   if (typeof value === 'string') return value;
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
@@ -38,7 +38,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     let errorMessage = `HTTP ${response.status}`;
     let responseText = '';
-    let errorData: any = null;
+    let errorData: unknown = null;
     
     // Safely try to get response properties
     const status = response.status;
@@ -81,7 +81,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
         // Empty response body
         errorMessage = `${statusText}: ${url}`;
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       // If reading fails, use status
       console.warn('Failed to read error response:', e);
       errorMessage = `${statusText}: ${url}`;
@@ -156,7 +156,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 // Helper function to remove undefined values from an object (for cleaner JSON)
-function removeUndefined(obj: any): any {
+function removeUndefined(obj: unknown): unknown {
   if (obj === null || obj === undefined) {
     return obj;
   }
@@ -184,7 +184,7 @@ async function apiRequest<T>(
   
   try {
     // Clean the body if it exists (remove undefined values)
-    let cleanedOptions = { ...options };
+    const cleanedOptions = { ...options };
     if (options.body && typeof options.body === 'string') {
       try {
         const parsed = JSON.parse(options.body);
@@ -493,7 +493,7 @@ export interface ScreeningQuestion {
   parent_question_id: string | null;
   question_text: string;
   question_type: string;
-  options: Record<string, any> | null;
+  options: Record<string, unknown> | null;
   display_order: number;
   created_at: string;
   updated_at: string;
@@ -505,14 +505,14 @@ export interface ScreeningQuestionCreate {
   parent_question_id?: string | null;
   question_text: string;
   question_type?: string;
-  options?: Record<string, any> | null;
+  options?: Record<string, unknown> | null;
   display_order?: number;
 }
 
 export interface ScreeningQuestionUpdate {
   question_text?: string;
   question_type?: string;
-  options?: Record<string, any> | null;
+  options?: Record<string, unknown> | null;
   display_order?: number;
 }
 
