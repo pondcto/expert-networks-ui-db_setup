@@ -17,12 +17,14 @@ function extractString(value: unknown): string | null {
   if (Array.isArray(value)) {
     return value.map(item => extractString(item) || String(item)).join(', ');
   }
-  if (typeof value === 'object') {
+  if (typeof value === 'object' && value !== null) {
+    // Type guard: value is an object with potentially unknown properties
+    const obj = value as Record<string, unknown>;
     // Try to extract common error fields
-    if (value.detail) return extractString(value.detail);
-    if (value.message) return extractString(value.message);
-    if (value.error) return extractString(value.error);
-    if (value.msg) return extractString(value.msg);
+    if (obj.detail) return extractString(obj.detail);
+    if (obj.message) return extractString(obj.message);
+    if (obj.error) return extractString(obj.error);
+    if (obj.msg) return extractString(obj.msg);
     // If all else fails, stringify
     try {
       return JSON.stringify(value);
