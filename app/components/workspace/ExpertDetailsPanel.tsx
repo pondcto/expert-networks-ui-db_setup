@@ -7,6 +7,7 @@ interface ProposedExpert {
   title: string;
   avatar: string;
   vendor_name: string;
+  company?: string;
   rating: number;
   aiFitScore: number;
   description: string;
@@ -150,7 +151,7 @@ export default function ExpertDetailsPanel({ selectedExpert, expert, hasExperts 
     if (selectedExpert) {
       return {
         name: selectedExpert.name,
-        affiliation: selectedExpert.company,
+        affiliation: selectedExpert.company || '',
         rating: selectedExpert.rating,
         about: selectedExpert.description,
         workHistory: selectedExpert.history,
