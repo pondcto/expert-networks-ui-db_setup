@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from "react";
 import { useCampaign } from "../../lib/campaign-context";
 import * as api from "../../lib/api-client";
-import Image from "next/image";
 
 interface ProposedExpert {
     id: string;
@@ -133,7 +132,7 @@ export default function SchedulingPipelinePanel() {
                                 <div className="flex items-center gap-3">
                                     {vendor && (
                                         <div className="w-10 h-10 rounded overflow-hidden bg-white dark:bg-dark-surface flex items-center justify-center">
-                                            <Image 
+                                            <img 
                                                 src={vendor.logo_url || '/images/vendor-logos/default.png'} 
                                                 alt="Vendor" 
                                                 width={40} 

@@ -4,7 +4,6 @@ import React, { useState, useEffect } from "react";
 import { Star, MapPin, X, Globe, MessageCircle, ArrowUpDown } from "lucide-react";
 import { useCampaign } from "../../lib/campaign-context";
 import * as api from "../../lib/api-client";
-import Image from "next/image";
 
 export interface VendorSelectionPanelProps {
   isConfirmButtonEnabled?: boolean;
@@ -375,7 +374,7 @@ export default function VendorSelectionPanel({
               <div className="col-span-2 flex items-center gap-6 min-w-0">
                 <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center flex-shrink-0">
                   <span className="text-body-sm font-medium text-gray-700 dark:text-gray-300">
-                    <Image src={vendor.logo} alt={vendor.name} width={40} height={40} className="w-10 h-10 rounded object-cover" />
+                    <img src={vendor.logo} alt={vendor.name} width={40} height={40} className="w-10 h-10 rounded object-cover" />
                   </span>
                 </div>
                 <div className="min-w-0 flex-1">
@@ -477,7 +476,7 @@ export default function VendorSelectionPanel({
               {/* Vendor Overview */}
               <div className="flex items-start gap-4 mb-6">
                 <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Image 
+                  <img 
                     src={selectedVendor.logo} 
                     alt={selectedVendor.name} 
                     width={64} 
@@ -604,7 +603,7 @@ export default function VendorSelectionPanel({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <div className="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden flex-shrink-0">
-                      <Image 
+                      <img 
                         src="/images/team-members/John Robert.png" 
                         alt="John Doe" 
                         width={48} 
@@ -663,7 +662,7 @@ export default function VendorSelectionPanel({
               {/* Vendor Information */}
               <div className="bg-light-background dark:bg-dark-background rounded-lg p-4 mb-6">
                 <div className="flex items-center gap-4 mb-3">
-                  <Image 
+                  <img 
                     src={vendorToEnroll.logo} 
                     alt={vendorToEnroll.name} 
                     width={48} 

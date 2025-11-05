@@ -1,7 +1,4 @@
-"use client";
-
 import React, { useState, useEffect } from "react";
-import Image from "next/image";
 interface ProposedExpert {
   id: string;
   name: string;
@@ -385,7 +382,7 @@ export default function ExpertSchedulingPanel({ selectedExpert }: ExpertScheduli
           {/* Expert Info */}
           <div className="flex items-center gap-2">
             <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700">
-              <Image src={selectedExpert.avatar} alt={selectedExpert.name} width={40} height={40} />
+              <img src={selectedExpert.avatar} alt={selectedExpert.name} width={40} height={40} />
             </div>
             <div className="flex flex-col">
               <span className="text-sm font-semibold text-light-text dark:text-dark-text">{selectedExpert.name}</span>
@@ -649,7 +646,7 @@ export default function ExpertSchedulingPanel({ selectedExpert }: ExpertScheduli
                 <div className="col-span-1 p-2 bg-light-background dark:bg-dark-background rounded-lg border border-light-border dark:border-dark-border">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 flex-shrink-0">
-                      <Image src={selectedExpert.avatar} alt={selectedExpert.name} width={48} height={48} />
+                      <img src={selectedExpert.avatar} alt={selectedExpert.name} width={48} height={48} />
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-xs text-light-text-tertiary dark:text-dark-text-tertiary font-medium mb-0.5">EXPERT</p>

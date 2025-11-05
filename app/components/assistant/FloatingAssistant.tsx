@@ -1,5 +1,3 @@
-"use client";
-
 import React, {
   FormEvent,
   useCallback,
@@ -8,8 +6,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { useLocation } from "react-router-dom";
 
 import { queryAssistant, transcribeAudio } from "../../lib/assistant/assistantClient";
 import { useVoiceCapture } from "../../lib/assistant/useVoiceCapture";
@@ -99,7 +96,8 @@ async function blobToBase64(blob: Blob): Promise<string> {
 export function FloatingAssistant() {
   const { config, triggerAction } = useAssistant();
   const { theme } = useTheme();
-  const pathname = usePathname();
+  const location = useLocation();
+  const pathname = location.pathname;
 
   const [isOpen, setIsOpen] = useState(false);
   const [panelSize, setPanelSize] = useState<PanelSize>(INITIAL_DIMENSIONS);
@@ -611,25 +609,23 @@ export function FloatingAssistant() {
 
   const collapsedContent = isDocked ? (
     <div className="flex w-full flex-col items-center justify-center leading-tight">
-      <Image
+      <img
         src={wordmarkSrc}
         alt="WindShift wordmark"
         width={120}
         height={30}
         className="h-6 w-auto"
-        priority={false}
       />
       <span className={`text-[10px] font-semibold uppercase tracking-[0.24em] ${labelTextClass}`}>Assistant</span>
     </div>
   ) : (
     <div className="flex w-full flex-col items-center justify-center gap-1.5 leading-tight">
-      <Image
+      <img
         src={wordmarkSrc}
         alt="WindShift wordmark"
         width={144}
         height={38}
         className="h-7 w-auto"
-        priority={false}
       />
       <span className={`text-[11px] font-semibold uppercase tracking-[0.24em] ${labelTextClass}`}>Assistant</span>
     </div>
@@ -681,13 +677,12 @@ export function FloatingAssistant() {
         onPointerDown={handleHeaderPointerDown}
       >
         <div className="flex select-none items-center gap-2 pr-1">
-          <Image
+          <img
             src={wordmarkSrc}
             alt="WindShift logo"
             width={104}
             height={28}
             className="h-6 w-auto"
-            priority={false}
           />
           <span className="text-xs uppercase tracking-[0.2em] text-primary-600 dark:text-primary-200">Assistant</span>
         </div>

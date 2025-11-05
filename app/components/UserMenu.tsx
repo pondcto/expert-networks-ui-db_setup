@@ -1,7 +1,5 @@
-"use client";
-
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "react-router-dom";
 import { User as UserIcon, LogOut } from "lucide-react";
 
 type Me = {
@@ -13,8 +11,8 @@ type Me = {
 };
 
 export default function UserMenu() {
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE || "http://3.236.237.205:8080";
-  const router = useRouter();
+  const apiBase = import.meta.env.VITE_API_BASE || "http://3.236.237.205:8080";
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [me, setMe] = useState<Me | null>(null);
   const [loading, setLoading] = useState(false);
@@ -45,7 +43,7 @@ export default function UserMenu() {
   const onLogout = () => {
     try { localStorage.removeItem("jwt"); } catch {}
     setOpen(false);
-    router.replace("/login");
+    navigate("/login", { replace: true });
   };
 
   const initials = (me?.full_name || me?.email || "").slice(0, 1).toUpperCase() || "U";

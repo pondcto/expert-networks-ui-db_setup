@@ -1,7 +1,5 @@
-"use client";
-
 import React, { Suspense, useEffect, useState, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "react-router-dom";
 import { AppSidebar } from "./components/app-sidebar";
 import { SidebarInset } from "./components/ui/sidebar";
 import Logo from "./components/Logo";
@@ -822,7 +820,7 @@ async function convertApiCampaignToCampaign(c: api.Campaign, projects?: api.Proj
 
 function HomeContent() {
   const { theme, toggleTheme } = useTheme();
-  const router = useRouter();
+  const navigate = useNavigate();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [projects, setProjects] = useState<api.Project[]>([]);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
@@ -1500,7 +1498,7 @@ function HomeContent() {
               </button>
 
               <button
-                onClick={() => router.push("/campaign/new")}
+                onClick={() => navigate("/campaign/new")}
                 className="btn-primary flex items-center gap-2 py-1 w-[170px]"
               >
                 <Plus className="w-4 h-4" />
@@ -1623,7 +1621,7 @@ function HomeContent() {
                 Get started by creating your first campaign
               </p>
               <button
-                onClick={() => router.push("/campaign/new")}
+                onClick={() => navigate("/campaign/new")}
                 className="btn-primary flex items-center gap-2 mx-auto"
               >
                 <Plus className="w-4 h-4" />
@@ -1656,7 +1654,7 @@ function HomeContent() {
                         campaignIds={campaignIds}
                         onDeleteProject={handleDeleteProject}
                         onDeleteCampaign={handleDeleteCampaign}
-                        onNavigateToCampaign={(id) => router.push(`/campaign/${id}/settings`)}
+                        onNavigateToCampaign={(id) => navigate(`/campaign/${id}/settings`)}
                         formatCurrency={formatCurrency}
                         columnWidths={columnWidths}
                       />

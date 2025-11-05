@@ -1,9 +1,7 @@
-"use client";
-
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { GripVertical, GripHorizontal } from "lucide-react";
 import { useCampaign, CampaignData } from "../../lib/campaign-context";
-import { useRouter, usePathname } from "next/navigation";
+import { useNavigate, useLocation } from "react-router-dom";
 import { WorkspaceHeader } from "../layout";
 import { PanelSizing } from "../../types";
 import ScreeningQuestionsPanel from "./ScreeningQuestionsPanel";
@@ -14,8 +12,9 @@ import VendorSelectionPanel from "./VendorSelectionPanel";
 
 export default function CampaignSettingsWorkspace() {
   const { campaignData, setCampaignData, saveCampaign, isNewCampaign } = useCampaign();
-  const router = useRouter();
-  const pathname = usePathname();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const pathname = location.pathname;
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Panel sizing states using optimized type
@@ -116,7 +115,7 @@ export default function CampaignSettingsWorkspace() {
       
       const campaignId = await saveCampaign();
       // Navigate to the campaign settings page after creation
-      router.push(`/campaign/${campaignId}/settings`);
+      navigate(`/campaign/${campaignId}/settings`);
     } catch (error) {
       console.error('Failed to save campaign:', error);
     }
@@ -132,19 +131,19 @@ export default function CampaignSettingsWorkspace() {
   // Navigation handlers (temporarily unused)
   const _handleNavigateToSettings = () => {
     if (campaignData?.id) {
-      router.push(`/campaign/${campaignData.id}/settings`);
+      navigate(`/campaign/${campaignData.id}/settings`);
     }
   };
 
   const _handleNavigateToExperts = () => {
     if (campaignData?.id) {
-      router.push(`/campaign/${campaignData.id}/experts`);
+      navigate(`/campaign/${campaignData.id}/experts`);
     }
   };
 
   const _handleNavigateToInterviews = () => {
     if (campaignData?.id) {
-      router.push(`/campaign/${campaignData.id}/interviews`);
+      navigate(`/campaign/${campaignData.id}/interviews`);
     }
   };
 

@@ -1,8 +1,7 @@
-"use client";
 import React from "react";
 import { Sun, Moon, Settings, Users, MessageSquare } from "lucide-react";
 import { useTheme } from "../../providers/theme-provider";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "react-router-dom";
 import UserMenu from "../UserMenu";
 import Logo from "../Logo";
 
@@ -18,23 +17,23 @@ export default function WorkspaceHeader({
   currentTab = "settings"
 }: WorkspaceHeaderProps) {
   const { theme, toggleTheme } = useTheme();
-  const router = useRouter();
+  const navigate = useNavigate();
 
   const handleNavigateToSettings = () => {
     if (campaignId) {
-      router.push(`/campaign/${campaignId}/settings`);
+      navigate(`/campaign/${campaignId}/settings`);
     }
   };
 
   const handleNavigateToExperts = () => {
     if (campaignId) {
-      router.push(`/campaign/${campaignId}/experts`);
+      navigate(`/campaign/${campaignId}/experts`);
     }
   };
 
   const handleNavigateToInterviews = () => {
     if (campaignId) {
-      router.push(`/campaign/${campaignId}/interviews`);
+      navigate(`/campaign/${campaignId}/interviews`);
     }
   };
 

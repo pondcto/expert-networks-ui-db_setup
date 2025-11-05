@@ -1,11 +1,9 @@
-"use client";
-
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "react-router-dom";
 import { authHeaders } from "../lib/auth";
 
 export default function AuthGate({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
+  const navigate = useNavigate();
   const [checked, setChecked] = useState(false);
   const [valid, setValid] = useState(false);
 
@@ -13,16 +11,16 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     try {
       const token = localStorage.getItem("jwt");
       if (!token) {
-        router.replace("/login");
+        navigate("/login", { replace: true });
         return;
       }
     } catch {
-      router.replace("/login");
+      navigate("/login", { replace: true });
       return;
     }
     setChecked(true);
     // Soft-validate token by calling /users/me; if unauthorized, redirect
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE || "/api";
+    const apiBase = import.meta.env.VITE_API_BASE || "/api";
     fetch(`${apiBase}/users/me`, { headers: authHeaders() as HeadersInit })
       .then((r) => {
         if (r.ok) {
@@ -32,7 +30,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
           try {
             localStorage.removeItem("jwt");
           } catch {}
-          router.replace("/login");
+          navigate("/login", { replace: true });
         }
       })
       .catch(() => {
@@ -40,9 +38,9 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
         try {
           localStorage.removeItem("jwt");
         } catch {}
-        router.replace("/login");
+        navigate("/login", { replace: true });
       });
-  }, [router]);
+  }, [navigate]);
 
   if (!checked || !valid) return null;
   return <>{children}</>;

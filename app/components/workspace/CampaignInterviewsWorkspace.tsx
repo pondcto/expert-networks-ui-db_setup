@@ -1,9 +1,7 @@
-"use client";
-
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { GripVertical, GripHorizontal } from "lucide-react";
 import { useCampaign, CampaignData } from "../../lib/campaign-context";
-import { useRouter, usePathname } from "next/navigation";
+import { useNavigate, useLocation } from "react-router-dom";
 import { WorkspaceHeader } from "../layout";
 import { PanelSizing } from "../../types";
 
@@ -17,8 +15,9 @@ import ChatHistoryPanel from "./ChatHistoryPanel";
 
 export default function CampaignInterviewsWorkspace() {
   const { campaignData, setCampaignData, saveCampaign, isNewCampaign } = useCampaign();
-  const router = useRouter();
-  const pathname = usePathname();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const pathname = location.pathname;
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Panel sizing states using optimized type
@@ -96,7 +95,7 @@ export default function CampaignInterviewsWorkspace() {
       }
       
       const campaignId = await saveCampaign();
-      router.push(`/campaign/${campaignId}/experts`);
+      navigate(`/campaign/${campaignId}/experts`);
     } catch (error) {
       console.error('Failed to save campaign:', error);
     }
@@ -105,19 +104,19 @@ export default function CampaignInterviewsWorkspace() {
   // Navigation handlers (temporarily unused)
   const _handleNavigateToSettings = () => {
     if (campaignData?.id) {
-      router.push(`/campaign/${campaignData.id}/settings`);
+      navigate(`/campaign/${campaignData.id}/settings`);
     }
   };
 
   const _handleNavigateToExperts = () => {
     if (campaignData?.id) {
-      router.push(`/campaign/${campaignData.id}/experts`);
+      navigate(`/campaign/${campaignData.id}/experts`);
     }
   };
 
   const _handleNavigateToInterviews = () => {
     if (campaignData?.id) {
-      router.push(`/campaign/${campaignData.id}/interviews`);
+      navigate(`/campaign/${campaignData.id}/interviews`);
     }
   };
 

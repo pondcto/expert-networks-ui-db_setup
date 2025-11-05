@@ -1,7 +1,5 @@
-"use client";
-
 import { Suspense, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useParams } from "react-router-dom";
 import CampaignInterviewsWorkspace from "../../../components/workspace/CampaignInterviewsWorkspace";
 import { AppSidebar } from "../../../components/app-sidebar";
 import { SidebarInset } from "../../../components/ui/sidebar";

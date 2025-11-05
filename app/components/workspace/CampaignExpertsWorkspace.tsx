@@ -1,9 +1,7 @@
-"use client";
-
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { GripVertical, GripHorizontal } from "lucide-react";
 import { useCampaign } from "../../lib/campaign-context";
-import { usePathname } from "next/navigation";
+import { useLocation } from "react-router-dom";
 import { WorkspaceHeader } from "../layout";
 import { PanelSizing } from "../../types";
 interface ProposedExpert {

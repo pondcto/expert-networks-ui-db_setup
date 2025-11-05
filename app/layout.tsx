@@ -1,24 +1,15 @@
-import type { Metadata } from "next";
+import React from "react";
 import "./globals.css";
 import ClientProviders from "./providers/client-providers";
 
-export const metadata: Metadata = {
-  title: "Windshift Expert Networks UI",
-  description: "AI-powered research automation with beautiful Windshift design",
-};
-
-export default function RootLayout({
-  children,
-}: Readonly<{
+interface RootLayoutProps {
   children: React.ReactNode;
-}>) {
+}
+
+export default function RootLayout({ children }: RootLayoutProps) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body>
-        <ClientProviders>
-          {children}
-        </ClientProviders>
-      </body>
-    </html>
+    <ClientProviders>
+      {children}
+    </ClientProviders>
   );
 }

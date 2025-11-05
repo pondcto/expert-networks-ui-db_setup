@@ -1,7 +1,5 @@
-"use client";
-
 import { Suspense, useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useNavigate } from "react-router-dom";
 import { AppSidebar } from "../../components/app-sidebar";
 import { SidebarInset } from "../../components/ui/sidebar";
 import Logo from "../../components/Logo";
@@ -31,7 +29,7 @@ interface Project {
 
 function ProjectDashboardContent() {
   const { theme, toggleTheme } = useTheme();
-  const router = useRouter();
+  const navigate = useNavigate();
   const params = useParams();
   const projectCode = params.project_code as string;
   
@@ -197,7 +195,7 @@ function ProjectDashboardContent() {
             <p className="text-light-text-secondary dark:text-dark-text-secondary mb-4">
               The project &ldquo;{projectCode}&rdquo; does not exist.
             </p>
-            <button onClick={() => router.push("/")} className="btn-primary">
+            <button onClick={() => navigate("/")} className="btn-primary">
               Go to Home
             </button>
           </div>
@@ -234,7 +232,7 @@ function ProjectDashboardContent() {
         <div className="max-w-7xl mx-auto p-6">
           {/* Back Button */}
           <button
-            onClick={() => router.push("/")}
+            onClick={() => navigate("/")}
             className="flex items-center gap-2 text-light-text-secondary dark:text-dark-text-secondary hover:text-light-text dark:hover:text-dark-text mb-6"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -329,7 +327,7 @@ function ProjectDashboardContent() {
                   No campaigns in this project yet
                 </p>
                 <button
-                  onClick={() => router.push("/campaign/new")}
+                  onClick={() => navigate("/campaign/new")}
                   className="btn-primary"
                 >
                   Create Campaign
@@ -376,7 +374,7 @@ function ProjectDashboardContent() {
                         {/* Campaign Name */}
                         <div 
                           className="w-[20%] cursor-pointer"
-                          onClick={() => router.push(`/campaign/${campaign.id}/settings`)}
+                          onClick={() => navigate(`/campaign/${campaign.id}/settings`)}
                         >
                           <div className="font-medium text-light-text dark:text-dark-text">
                             {campaign.campaignName}
@@ -386,7 +384,7 @@ function ProjectDashboardContent() {
                         {/* Status */}
                         <div 
                           className="w-[22%] flex items-center cursor-pointer"
-                          onClick={() => router.push(`/campaign/${campaign.id}/settings`)}
+                          onClick={() => navigate(`/campaign/${campaign.id}/settings`)}
                         >
                           {status.isActive ? (
                             <div className="w-full">
@@ -415,7 +413,7 @@ function ProjectDashboardContent() {
                         {/* Timeline */}
                         <div 
                           className="w-[18%] flex items-center gap-1 cursor-pointer"
-                          onClick={() => router.push(`/campaign/${campaign.id}/settings`)}
+                          onClick={() => navigate(`/campaign/${campaign.id}/settings`)}
                         >
                           <Calendar className="w-4 h-4 text-light-text-tertiary dark:text-dark-text-tertiary flex-shrink-0" />
                           <div className="text-sm text-light-text dark:text-dark-text">
@@ -429,7 +427,7 @@ function ProjectDashboardContent() {
                         {/* Team */}
                         <div 
                           className="w-[15%] flex items-center gap-2 cursor-pointer"
-                          onClick={() => router.push(`/campaign/${campaign.id}/settings`)}
+                          onClick={() => navigate(`/campaign/${campaign.id}/settings`)}
                         >
                           <Users className="w-4 h-4 text-light-text-tertiary dark:text-dark-text-tertiary flex-shrink-0" />
                           <div className="flex -space-x-2">
@@ -461,7 +459,7 @@ function ProjectDashboardContent() {
                         {/* Calls */}
                         <div 
                           className="w-[8%] flex items-center cursor-pointer"
-                          onClick={() => router.push(`/campaign/${campaign.id}/settings`)}
+                          onClick={() => navigate(`/campaign/${campaign.id}/settings`)}
                         >
                           <span className="text-sm text-light-text dark:text-dark-text">
                             {campaign.estimatedCalls}
@@ -471,7 +469,7 @@ function ProjectDashboardContent() {
                         {/* Industry */}
                         <div 
                           className="w-[10%] flex items-center cursor-pointer"
-                          onClick={() => router.push(`/campaign/${campaign.id}/settings`)}
+                          onClick={() => navigate(`/campaign/${campaign.id}/settings`)}
                         >
                           <span className="text-sm text-light-text-tertiary dark:text-dark-text-tertiary truncate">
                             {campaign.industryVertical}

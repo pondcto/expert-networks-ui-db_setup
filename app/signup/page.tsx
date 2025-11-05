@@ -1,9 +1,6 @@
-'use client';
-
 import { useState, useEffect } from 'react';
 import { signUp } from '@/lib/auth/better-auth-client';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { useNavigate, Link } from 'react-router-dom';
 import { UserPlus, Mail } from 'lucide-react';
 
 /**
@@ -12,7 +9,7 @@ import { UserPlus, Mail } from 'lucide-react';
  * Allows users to create a new account with email/password or SSO (Google, Microsoft).
  */
 export default function SignupPage() {
-  const router = useRouter();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState('');
@@ -66,7 +63,7 @@ export default function SignupPage() {
         setLoading(false);
       } else if (data) {
         // Success - redirect to dashboard
-        router.push('/dashboard');
+        navigate('/dashboard');
       }
     } catch (err: unknown) {
       console.error('Signup failed:', err);
@@ -163,7 +160,7 @@ export default function SignupPage() {
         <p className="text-center text-sm text-light-text-secondary dark:text-dark-text-secondary">
           Already have an account?{' '}
           <Link
-            href="/login"
+            to="/login"
             className="font-medium text-primary-500 hover:text-primary-600 transition-colors"
           >
             Sign in

@@ -22,8 +22,7 @@ import {
 } from "@/components/ui/sidebar"
 import { useNavigation } from "./navigation-context"
 import { useSidebar } from "@/components/ui/sidebar"
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Link, useLocation } from "react-router-dom";
 import NewProjectModal from "./NewProjectModal";
 
 // Type definitions
@@ -94,7 +93,8 @@ const bottomMenuItems = [
 ]
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const pathname = usePathname();
+  const location = useLocation();
+  const pathname = location.pathname;
   const { setOpen, isMobile, state } = useSidebar();
   const [expandedProjects, setExpandedProjects] = React.useState<string[]>([]);
   const { setActiveNav, setHoverNav } = useNavigation();
@@ -318,7 +318,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     className="h-10 w-full flex items-center justify-center relative"
                   >
                     <Link
-                      href={item.href}
+                      to={item.href}
                       className={`p-2 rounded-md transition-all duration-200 ${isActive ? 'bg-primary-500/15 dark:bg-primary-500/20' : 'hover:bg-primary-500/5 dark:hover:bg-primary-500/10'}`}
                     >
                       <item.icon className={`h-5 w-5 stroke-[1.5] transition-colors duration-200 ${isActive ? 'text-primary-500 dark:text-primary-400' : 'text-light-text-tertiary dark:text-dark-text-tertiary hover:text-primary-500 dark:hover:text-primary-400'}`} />
@@ -338,7 +338,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     className="h-10 w-full flex items-center justify-center relative"
                   >
                     <Link
-                      href={item.href}
+                      to={item.href}
                       className={`p-2 rounded-md transition-all duration-200 ${isActive ? 'bg-primary-500/15 dark:bg-primary-500/20' : 'hover:bg-primary-500/5 dark:hover:bg-primary-500/10'}`}
                     >
                       <item.icon className={`h-5 w-5 stroke-[1.5] transition-colors duration-200 ${isActive ? 'text-primary-500 dark:text-primary-400' : 'text-light-text-tertiary dark:text-dark-text-tertiary hover:text-primary-500 dark:hover:text-primary-400'}`} />
@@ -365,7 +365,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                               className={`text-light-text-secondary dark:text-dark-text-secondary hover:text-light-text dark:hover:text-dark-text hover:bg-light-surface-hover dark:hover:bg-dark-surface-hover ${isActive ? "bg-light-surface-active text-light-text dark:bg-dark-surface-active dark:text-dark-text" : ""}`}
                             >
                               <Link
-                                href={item.href}
+                                to={item.href}
                                 className="flex items-center gap-2 w-full"
                                 onClick={() => setActiveNav({ level1: item.title })}
                               >
@@ -417,7 +417,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                                               return (
                                                 <Link
                                                   key={campaign.id}
-                                                  href={campaignHref}
+                                                  to={campaignHref}
                                                   className={`block px-1 py-1 text-sm rounded transition-colors ${
                                                     isCampaignActive 
                                                       ? "bg-light-surface-active text-light-text dark:bg-dark-surface-active dark:text-dark-text" 
@@ -533,7 +533,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                           className={`text-light-text-secondary dark:text-dark-text-secondary hover:text-light-text dark:hover:text-dark-text hover:bg-light-surface-hover dark:hover:bg-dark-surface-hover ${isActive ? "bg-light-surface-active text-light-text dark:bg-dark-surface-active dark:text-dark-text" : ""}`}
                         >
                           <Link
-                            href={item.href}
+                            to={item.href}
                             className="flex items-center gap-2 w-full"
                             onClick={() => setActiveNav({ level1: item.title })}
                           >
@@ -562,7 +562,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                           className={`text-light-text-secondary dark:text-dark-text-secondary hover:text-light-text dark:hover:text-dark-text hover:bg-light-surface-hover dark:hover:bg-dark-surface-hover ${isActive ? "bg-light-surface-active text-light-text dark:bg-dark-surface-active dark:text-dark-text" : ""}`}
                         >
                           <Link
-                            href={item.href}
+                            to={item.href}
                             className="flex items-center gap-2 w-full"
                             onClick={() => setActiveNav({ level1: item.title })}
                           >

@@ -1,6 +1,4 @@
-"use client";
-
-import { usePathname } from "next/navigation";
+import { useLocation } from "react-router-dom";
 import { ThemeProvider } from "./theme-provider";
 import { AssistantProvider, FloatingAssistant } from "../components/assistant";
 import { SidebarProvider } from "../components/ui/sidebar";
@@ -12,8 +10,8 @@ export default function ClientProviders({
 }: {
   children: React.ReactNode;
 }) {
-  const pathname = usePathname();
-  const isAuthPage = pathname === "/login" || pathname === "/signup";
+  const location = useLocation();
+  const isAuthPage = location.pathname === "/login" || location.pathname === "/signup";
 
   if (isAuthPage) {
     return <ThemeProvider>{children}</ThemeProvider>;

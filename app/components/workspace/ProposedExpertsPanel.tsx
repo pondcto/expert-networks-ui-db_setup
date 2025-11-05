@@ -1,7 +1,4 @@
-"use client";
-
 import React, { useState, useEffect, useCallback } from "react";
-import Image from "next/image";
 import { Star } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { LoadingSpinner } from "../ui/loading-spinner";
@@ -291,7 +288,7 @@ export default function ProposedExpertsPanel({ onExpertSelect, selectedExpertId,
                       <div className="flex items-center gap-2">
                         <div className="relative">
                           <div className="w-10 h-10 rounded overflow-hidden bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                            <Image src={expert.avatar} alt={expert.name} width={40} height={40} />
+                            <img src={expert.avatar} alt={expert.name} width={40} height={40} />
                           </div>
                           {expert.isNew && (
                             <div className="absolute -bottom-1 -right-1 bg-blue-500 text-white text-xs px-0.5 rounded">
@@ -312,7 +309,7 @@ export default function ProposedExpertsPanel({ onExpertSelect, selectedExpertId,
                       return vendor ? (
                         <div className="flex items-center gap-2 min-w-0">
                           <div className="w-6 h-6 rounded overflow-hidden bg-gray-100 dark:bg-gray-700 flex items-center justify-center flex-shrink-0">
-                            <Image src={vendor.logo_url || '/images/vendor-logos/default.png'} alt={vendor.name} width={24} height={24} className="object-contain" />
+                            <img src={vendor.logo_url || '/images/vendor-logos/default.png'} alt={vendor.name} width={24} height={24} className="object-contain" />
                           </div>
                           <span className="text-sm font-medium text-light-text dark:text-dark-text truncate min-w-0">{vendor.name}</span>
                         </div>
