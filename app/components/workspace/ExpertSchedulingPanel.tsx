@@ -2,7 +2,13 @@
 
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
-import { ProposedExpert } from "../../data/mockData";
+interface ProposedExpert {
+  id: string;
+  name: string;
+  title: string;
+  avatar: string;
+  vendor_name: string;
+}
 import { useCampaign } from "../../lib/campaign-context";
 import { 
   timeSlots, 
@@ -18,6 +24,7 @@ import {
 } from "../../utils/dateUtils";
 import { Check, Users, X, Send } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { EmptyState } from "../ui/empty-state";
 import { CampaignData } from "../../lib/campaign-context";
 import {
   DndContext,
@@ -241,7 +248,8 @@ export default function ExpertSchedulingPanel({ selectedExpert }: ExpertScheduli
     setCurrentWeek(newDate);
   };
 
-  // Mock expert availability (in a real app, this would come from the API)
+  // Expert availability check
+  // TODO: Replace with API call to get expert availability calendar
   const getExpertAvailability = (date: Date, timeSlot: string): boolean => {
     if (!selectedExpert) return false;
     
@@ -255,7 +263,8 @@ export default function ExpertSchedulingPanel({ selectedExpert }: ExpertScheduli
     return dayOfWeek >= 1 && dayOfWeek <= 5 && hour24 >= 9 && hour24 < 17;
   };
 
-  // Mock team availability (in a real app, this would come from team calendars)
+  // Team availability check
+  // TODO: Replace with API call to get team member calendar availability
   const getTeamAvailability = (date: Date, timeSlot: string): boolean => {
     const required = teamMembers.filter(m => requiredMemberIds.includes(m.id));
     if (required.length === 0) return true; // If no required attendees, treat as unconstrained
@@ -336,14 +345,19 @@ export default function ExpertSchedulingPanel({ selectedExpert }: ExpertScheduli
 
   if (!selectedExpert) {
     return (
-      <div className="card h-full w-full flex flex-col items-center justify-center p-8">
-        <Users className="w-16 h-16 text-light-text-tertiary dark:text-dark-text-tertiary mb-4" />
-        <h3 className="text-lg font-semibold text-light-text dark:text-dark-text mb-2">
-          No Expert Selected
+      <div className="card h-full w-full flex flex-col overflow-hidden pb-0 px-3 pt-3">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-title font-semibold text-light-text dark:text-dark-text mb-1">
+            Expert Availability / Scheduling
         </h3>
-        <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary text-center">
-          Please select an expert from the Proposed Experts panel to view their availability and schedule a call.
-        </p>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <EmptyState
+            icon={<Users className="w-16 h-16 text-light-text-tertiary dark:text-dark-text-tertiary" />}
+            title="No Expert Selected"
+            description="Please select an expert from the Proposed Experts panel to view their availability and schedule a call."
+          />
+        </div>
       </div>
     );
   }

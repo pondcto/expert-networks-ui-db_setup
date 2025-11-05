@@ -80,10 +80,35 @@ async def list_experts(
         where_clause = " AND ".join(where_clauses)
 
         # Query experts with aggregated data
+        # Map database columns (name, title, company) to model fields (expert_name, current_title, current_company)
         experts = await execute_query(
             f"""
             SELECT
-                e.*,
+                e.id,
+                e.campaign_id,
+                e.vendor_platform_id,
+                e.name as expert_name,
+                e.title as current_title,
+                e.company as current_company,
+                e.avatar_url,
+                e.description as bio,
+                e.work_history,
+                e.skills as expertise_areas,
+                e.rating,
+                e.ai_fit_score as relevance_score,
+                e.status,
+                e.is_new,
+                e.created_at,
+                e.updated_at,
+                e.reviewed_at,
+                NULL as location,
+                NULL as linkedin_url,
+                NULL as email,
+                NULL as phone,
+                NULL as years_experience,
+                NULL as hourly_rate,
+                NULL as vendor_expert_id,
+                NULL as internal_notes,
                 v.name as vendor_name,
                 v.logo_url as vendor_logo_url,
                 COUNT(DISTINCT i.id) as interview_count
@@ -91,7 +116,9 @@ async def list_experts(
             JOIN expert_network.vendor_platforms v ON e.vendor_platform_id = v.id
             LEFT JOIN expert_network.interviews i ON e.id = i.expert_id
             WHERE {where_clause}
-            GROUP BY e.id, v.name, v.logo_url
+            GROUP BY e.id, e.campaign_id, e.vendor_platform_id, e.name, e.title, e.company, e.avatar_url, 
+                     e.description, e.work_history, e.skills, e.rating, e.ai_fit_score, e.status, 
+                     e.is_new, e.created_at, e.updated_at, e.reviewed_at, v.name, v.logo_url
             ORDER BY e.created_at DESC
             """,
             *params,
@@ -129,10 +156,35 @@ async def get_expert(expert_id: str, user: User = Depends(get_current_user)):
     """
     try:
         # Query expert with campaign ownership check
+        # Map database columns (name, title, company) to model fields (expert_name, current_title, current_company)
         expert = await execute_query(
             """
             SELECT
-                e.*,
+                e.id,
+                e.campaign_id,
+                e.vendor_platform_id,
+                e.name as expert_name,
+                e.title as current_title,
+                e.company as current_company,
+                e.avatar_url,
+                e.description as bio,
+                e.work_history,
+                e.skills as expertise_areas,
+                e.rating,
+                e.ai_fit_score as relevance_score,
+                e.status,
+                e.is_new,
+                e.created_at,
+                e.updated_at,
+                e.reviewed_at,
+                NULL as location,
+                NULL as linkedin_url,
+                NULL as email,
+                NULL as phone,
+                NULL as years_experience,
+                NULL as hourly_rate,
+                NULL as vendor_expert_id,
+                NULL as internal_notes,
                 v.name as vendor_name,
                 v.logo_url as vendor_logo_url,
                 COUNT(DISTINCT i.id) as interview_count
@@ -141,7 +193,9 @@ async def get_expert(expert_id: str, user: User = Depends(get_current_user)):
             JOIN expert_network.campaigns c ON e.campaign_id = c.id
             LEFT JOIN expert_network.interviews i ON e.id = i.expert_id
             WHERE e.id = $1 AND c.user_id = $2
-            GROUP BY e.id, v.name, v.logo_url
+            GROUP BY e.id, e.campaign_id, e.vendor_platform_id, e.name, e.title, e.company, e.avatar_url, 
+                     e.description, e.work_history, e.skills, e.rating, e.ai_fit_score, e.status, 
+                     e.is_new, e.created_at, e.updated_at, e.reviewed_at, v.name, v.logo_url
             """,
             expert_id,
             user.user_id,

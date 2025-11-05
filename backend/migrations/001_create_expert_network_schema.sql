@@ -1,5 +1,5 @@
 -- Migration: Create expert_network schema
--- Database: ragdb (postgresql+asyncpg://raguser:ragpass@localhost:5432/ragdb)
+-- Database: ragdb (postgresql+asyncpg://postgres:ragpass@localhost:5432/ragdb)
 --
 -- This migration creates a separate 'expert_network' schema to isolate
 -- the expert networks application data from the 'public' schema used
@@ -16,14 +16,14 @@
 
 CREATE SCHEMA IF NOT EXISTS expert_network;
 
--- Grant permissions to raguser
-GRANT ALL ON SCHEMA expert_network TO raguser;
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA expert_network TO raguser;
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA expert_network TO raguser;
+-- Grant permissions to postgres
+GRANT ALL ON SCHEMA expert_network TO postgres;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA expert_network TO postgres;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA expert_network TO postgres;
 
 -- Set default privileges for future objects
-ALTER DEFAULT PRIVILEGES IN SCHEMA expert_network GRANT ALL ON TABLES TO raguser;
-ALTER DEFAULT PRIVILEGES IN SCHEMA expert_network GRANT ALL ON SEQUENCES TO raguser;
+ALTER DEFAULT PRIVILEGES IN SCHEMA expert_network GRANT ALL ON TABLES TO postgres;
+ALTER DEFAULT PRIVILEGES IN SCHEMA expert_network GRANT ALL ON SEQUENCES TO postgres;
 
 -- Enable required extensions (these are global, not schema-specific)
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -74,6 +74,7 @@ CREATE TABLE expert_network.campaigns (
 
     -- Target regions (stored as array)
     target_regions TEXT[] NOT NULL DEFAULT '{}',
+    custom_regions TEXT,  -- Custom region specification when "Other" is selected
 
     -- Call targets and tracking
     min_calls INTEGER,

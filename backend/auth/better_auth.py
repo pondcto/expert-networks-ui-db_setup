@@ -135,24 +135,35 @@ def validate_session(token: str) -> Optional[dict]:
         return None
 
 
-async def get_current_user(authorization: Optional[str] = Header(None)) -> User:
+async def get_current_user(
+    authorization: Optional[str] = Header(None),
+    x_user_id: Optional[str] = Header(None, alias="X-User-Id")
+) -> User:
     """
     FastAPI dependency to get current user from Better Auth session token.
     Raises 401 if token is missing or invalid.
 
     Use this for protected endpoints that require authentication.
+    
+    Accepts X-User-Id header for demo/testing purposes (works even when auth is enabled).
+    If X-User-Id is provided, it takes precedence over session token validation.
     """
     config = get_auth_config()
 
+    # Check for X-User-Id header first (demo mode - works even when auth is enabled)
+    if x_user_id:
+        print(f"[BetterAuth] Using X-User-Id header for demo mode: {x_user_id}")
+        return User(user_id=x_user_id, email=None, name=f"User {x_user_id}")
+
     if not config.enabled:
         # Auth disabled - allow all requests with anonymous user
-        print("[BetterAuth] Auth disabled - allowing request")
+        print("[BetterAuth] Auth disabled - allowing request with anonymous user")
         return User(user_id="anonymous", email=None, name="Anonymous")
 
     if not authorization:
         raise HTTPException(
             status_code=401,
-            detail="Missing authorization header"
+            detail="Missing authorization header or X-User-Id header"
         )
 
     # Extract token from "Bearer <token>"

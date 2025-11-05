@@ -65,6 +65,7 @@ class InterviewResponse(UUIDIdentifier, InterviewBase, TimestampMixin):
     expert_name: Optional[str] = Field(None, description="Expert's name")
     expert_company: Optional[str] = Field(None, description="Expert's company")
     expert_title: Optional[str] = Field(None, description="Expert's job title")
+    expert_avatar_url: Optional[str] = Field(None, description="Expert's avatar URL")
 
     # Vendor details
     vendor_platform_id: Optional[str] = Field(None, description="Vendor platform UUID")

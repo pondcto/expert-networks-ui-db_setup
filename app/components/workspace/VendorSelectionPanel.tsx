@@ -3,41 +3,107 @@
 import React, { useState, useEffect } from "react";
 import { Star, MapPin, X, Globe, MessageCircle, ArrowUpDown } from "lucide-react";
 import { useCampaign } from "../../lib/campaign-context";
-import { mockVendorPlatforms, VendorPlatform } from "../../data/mockData";
+import * as api from "../../lib/api-client";
 import Image from "next/image";
 
 export interface VendorSelectionPanelProps {
-  vendors?: VendorPlatform[];
   isConfirmButtonEnabled?: boolean;
   onSaveCampaign?: () => void;
   onDataChange?: (data: string[]) => void;
   onPanelFocus?: () => void;
 }
 
+interface VendorPlatform {
+  id: string;
+  rank: number;
+  name: string;
+  logo: string;
+  location: string;
+  overallScore: number;
+  avgCostPerCall: string;
+  status: "pending" | "Not enrolled" | "Enrolled";
+  description: string;
+  tags: string[];
+}
 
 export default function VendorSelectionPanel({ 
-  vendors = mockVendorPlatforms, 
   isConfirmButtonEnabled = true,
   onSaveCampaign,
   onPanelFocus
 }: VendorSelectionPanelProps) {
-  const { isNewCampaign } = useCampaign();
+  const { isNewCampaign, campaignData } = useCampaign();
+  const [vendors, setVendors] = useState<VendorPlatform[]>([]);
+  const [enrolledVendors, setEnrolledVendors] = useState<Set<string>>(new Set());
   const [showVendorDetailsModal, setShowVendorDetailsModal] = useState<boolean>(false);
   const [selectedVendor, setSelectedVendor] = useState<VendorPlatform | null>(null);
-  const [enrolledVendors, setEnrolledVendors] = useState<Set<string>>(new Set());
   const [showEnrollmentModal, setShowEnrollmentModal] = useState<boolean>(false);
   const [vendorToEnroll, setVendorToEnroll] = useState<VendorPlatform | null>(null);
   const [pendingVendors, setPendingVendors] = useState<Set<string>>(new Set());
   const [sortColumn, setSortColumn] = useState<'rank' | 'overallScore' | 'avgCostPerCall' | 'status' | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [loading, setLoading] = useState(true);
 
-  // Initialize enrolled vendors with vendors that are already enrolled
+  // Load vendors from API
   useEffect(() => {
-    const alreadyEnrolled = vendors
-      .filter(vendor => vendor.status === "Enrolled")
-      .map(vendor => vendor.id);
-    setEnrolledVendors(new Set(alreadyEnrolled));
-  }, [vendors]);
+    const loadVendors = async () => {
+      try {
+        const vendorsData = await api.getVendors();
+        
+        // Load enrolled vendors for this campaign if campaign exists
+        let enrollmentMap = new Map<string, string>(); // vendor_id -> status
+        if (campaignData?.id) {
+          try {
+            const enrollments = await api.getCampaignVendors(campaignData.id);
+            enrollments.forEach(e => {
+              enrollmentMap.set(e.vendor_platform_id, e.status);
+            });
+          } catch (error) {
+            console.error('Error loading vendor enrollments:', error);
+          }
+        }
+
+        // Convert API vendors to VendorPlatform format
+        const vendorPlatforms: VendorPlatform[] = vendorsData.map((vendor, index) => {
+          const enrollmentStatus = enrollmentMap.get(vendor.id);
+          // Map database status to display status:
+          // - Not in enrollment table → "Not enrolled"
+          // - status === "pending" → "pending"
+          // - status is anything else (active, paused, completed) → "Enrolled"
+          let displayStatus: "pending" | "Not enrolled" | "Enrolled" = "Not enrolled";
+          if (enrollmentStatus) {
+            if (enrollmentStatus === "pending") {
+              displayStatus = "pending";
+            } else {
+              displayStatus = "Enrolled";
+            }
+          }
+          
+          return {
+            id: vendor.id,
+            rank: index + 1,
+            name: vendor.name,
+            logo: vendor.logo_url || '/images/vendor-logos/default.png',
+            location: vendor.location,
+            overallScore: vendor.overall_score,
+            avgCostPerCall: `$${vendor.avg_cost_per_call_min} - ${vendor.avg_cost_per_call_max}`,
+            status: displayStatus,
+            description: vendor.description,
+            tags: vendor.tags || [],
+          };
+        });
+
+        setVendors(vendorPlatforms);
+        setEnrolledVendors(new Set(enrollmentMap.keys()));
+      } catch (error) {
+        console.error('Error loading vendors:', error);
+        setVendors([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadVendors();
+  }, [campaignData?.id]);
 
   const handleVendorClick = (vendor: VendorPlatform) => {
     setSelectedVendor(vendor);
@@ -50,15 +116,43 @@ export default function VendorSelectionPanel({
     setShowEnrollmentModal(true);
   };
 
-  const handleConfirmEnrollment = () => {
-    if (vendorToEnroll) {
-      setPendingVendors(prev => {
-        const newSet = new Set(prev);
-        newSet.add(vendorToEnroll.id);
-        return newSet;
-      });
-      setShowEnrollmentModal(false);
-      setVendorToEnroll(null);
+  const handleConfirmEnrollment = async () => {
+    if (vendorToEnroll && campaignData?.id) {
+      try {
+        // Enroll vendor via API
+        await api.enrollVendor(campaignData.id, vendorToEnroll.id);
+        
+        // Reload vendors to get updated status from database
+        const updatedEnrollments = await api.getCampaignVendors(campaignData.id);
+        const enrollmentMap = new Map<string, string>();
+        updatedEnrollments.forEach(e => {
+          enrollmentMap.set(e.vendor_platform_id, e.status);
+        });
+        
+        setEnrolledVendors(new Set(enrollmentMap.keys()));
+        setVendors(prev => prev.map(v => {
+          if (v.id === vendorToEnroll.id) {
+            const enrollmentStatus = enrollmentMap.get(v.id);
+            // Map database status to display status
+            let displayStatus: "pending" | "Not enrolled" | "Enrolled" = "Not enrolled";
+            if (enrollmentStatus) {
+              if (enrollmentStatus === "pending") {
+                displayStatus = "pending";
+              } else {
+                displayStatus = "Enrolled";
+              }
+            }
+            return { ...v, status: displayStatus };
+          }
+          return v;
+        }));
+        
+        setShowEnrollmentModal(false);
+        setVendorToEnroll(null);
+      } catch (error) {
+        console.error('Error enrolling vendor:', error);
+        alert('Failed to enroll vendor. Please try again.');
+      }
     }
   };
 
@@ -73,19 +167,18 @@ export default function VendorSelectionPanel({
   };
 
   const getVendorStatus = (vendor: VendorPlatform) => {
-    if (pendingVendors.has(vendor.id)) return "Pending";
-    if (enrolledVendors.has(vendor.id)) return "Enrolled";
+    // Use status from vendor object (already mapped from database)
     return vendor.status;
   };
 
   const getStatusPillStyle = (status: string) => {
     switch (status) {
-      case "Pending":
+      case "pending":
         return "bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 border border-yellow-300 dark:border-yellow-700";
-      case "Not enrolled":
-        return "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 border border-red-300 dark:border-red-700";
       case "Enrolled":
         return "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 border border-green-300 dark:border-green-700";
+      case "Not enrolled":
+        return "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 border border-red-300 dark:border-red-700";
       default:
         return "bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 border border-gray-300 dark:border-gray-700";
     }
@@ -137,6 +230,21 @@ export default function VendorSelectionPanel({
       setSortDirection('asc');
     }
   };
+
+  if (loading) {
+    return (
+      <div className="card h-full w-full flex flex-col overflow-hidden pb-0 px-3 pt-3 relative">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-title font-semibold text-light-text dark:text-dark-text">
+            Vendor Selection
+          </h3>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-light-text-secondary dark:text-dark-text-secondary">Loading vendors...</div>
+        </div>
+      </div>
+    );
+  }
 
   const getSortedVendors = () => {
     if (!sortColumn) return vendors;
@@ -227,7 +335,7 @@ export default function VendorSelectionPanel({
             <ArrowUpDown className="w-3 h-3" />
           </div>
           <div 
-            className="col-span-2 flex items-center gap-2 cursor-pointer hover:text-primary-500 transition-colors"
+            className="col-span-1 flex items-center gap-2 text-center cursor-pointer hover:text-primary-500 transition-colors"
             onClick={() => handleSort('avgCostPerCall')}
           >
             <span>Avg Cost per call</span>
@@ -290,7 +398,7 @@ export default function VendorSelectionPanel({
               </div>
 
               {/* Avg Cost per call */}
-              <div className="col-span-2 flex items-center gap-1">
+              <div className="col-span-1 flex items-center gap-1">
                 <span className="text-body-sm text-light-text items-center dark:text-dark-text">
                   {vendor.avgCostPerCall}
                 </span>
@@ -299,17 +407,17 @@ export default function VendorSelectionPanel({
               {/* Status */}
               <div className="col-span-1 flex items-center gap-1">
                 <span className={`inline-flex items-center justify-center w-28 py-1 text-xs ${getStatusPaddingSize(getVendorStatus(vendor))} font-medium rounded-full whitespace-nowrap ${getStatusPillStyle(getVendorStatus(vendor))}`}>
-                  {getVendorStatus(vendor)}
+                  {getVendorStatus(vendor) === "pending" ? "Pending" : getVendorStatus(vendor)}
                 </span>
               </div>
 
               {/* Description */}
-              <div className="col-span-4 min-w-0">
+              <div className="col-span-5 min-w-0">
                 <p className="text-body-sm text-light-text dark:text-dark-text mb-2 line-clamp-2 min-w-0">
                   {vendor.description}
                 </p>
                 <div className="flex gap-1 min-w-0">
-                  {vendor.tags.slice(0, 2).map((tag, index) => (
+                  {vendor.tags.slice(0, 4).map((tag, index) => (
                     <span key={index} className="inline-block px-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-xs rounded-full flex-shrink-0 whitespace-nowrap">
                       {tag}
                     </span>
@@ -326,14 +434,14 @@ export default function VendorSelectionPanel({
               <div className="w-[80px] flex items-center justify-center">
                 <button
                   onClick={(e) => handleEnrollVendor(e, vendor)}
-                  disabled={!isConfirmButtonEnabled || getVendorStatus(vendor) === "Enrolled" || getVendorStatus(vendor) === "Pending"}
+                  disabled={!isConfirmButtonEnabled || getVendorStatus(vendor) !== "Not enrolled"}
                   className={`w-20 px-3 py-2 text-xs rounded-md transition-colors ${
-                    !isConfirmButtonEnabled || getVendorStatus(vendor) === "Enrolled" || getVendorStatus(vendor) === "Pending"
+                    !isConfirmButtonEnabled || getVendorStatus(vendor) !== "Not enrolled"
                       ? "bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed"
                       : "bg-primary-500 hover:bg-primary-600 text-white"
                   }`}
                 >
-                  {getVendorStatus(vendor) === "Enrolled" ? "Enrolled" : getVendorStatus(vendor) === "Pending" ? "Pending" : "Enroll"}
+                  {getVendorStatus(vendor) === "Not enrolled" ? "Enroll" : getVendorStatus(vendor) === "pending" ? "Pending" : "Enrolled"}
                 </button>
               </div>
             </div>
@@ -497,7 +605,7 @@ export default function VendorSelectionPanel({
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <div className="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden flex-shrink-0">
                       <Image 
-                        src="/images/avatar/John Robert.png" 
+                        src="/images/team-members/John Robert.png" 
                         alt="John Doe" 
                         width={48} 
                         height={48} 

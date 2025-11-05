@@ -1,9 +1,25 @@
 "use client";
 
 import React, { useState } from "react";
-import { ProposedExpert } from "../../data/mockData";
+interface ProposedExpert {
+  id: string;
+  name: string;
+  title: string;
+  avatar: string;
+  vendor_name: string;
+  rating: number;
+  aiFitScore: number;
+  description: string;
+  history: string;
+  skills: string[];
+  screeningResponses: {
+    question: string;
+    answer: string;
+  }[];
+}
 import { useCampaign, CampaignData } from "../../lib/campaign-context";
-import { Star, X } from "lucide-react";
+import { Star, X, Users } from "lucide-react";
+import { EmptyState } from "../ui/empty-state";
 
 interface ExtendedCampaignData extends Omit<CampaignData, 'screeningQuestions'> {
   screeningQuestions?: Array<{
@@ -27,9 +43,10 @@ interface ExpertDetailsProps {
       answer: string;
     }[];
   };
+  hasExperts?: boolean; // Whether any experts exist in the Proposed Experts panel
 }
 
-export default function ExpertDetailsPanel({ selectedExpert, expert }: ExpertDetailsProps) {
+export default function ExpertDetailsPanel({ selectedExpert, expert, hasExperts = true }: ExpertDetailsProps) {
   const { campaignData } = useCampaign();
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [ratings, setRatings] = useState({
@@ -112,8 +129,24 @@ export default function ExpertDetailsPanel({ selectedExpert, expert }: ExpertDet
     });
   };
 
+  // Empty expert data when no experts exist
+  const emptyExpert = {
+    name: "",
+    affiliation: "",
+    rating: 0,
+    about: "",
+    workHistory: "",
+    skills: [],
+    screeningResponses: [],
+  };
+
   // Convert selectedExpert to the expected format or use default
   const getExpertData = () => {
+    // If no experts exist in the panel, return empty values
+    if (!hasExperts) {
+      return emptyExpert;
+    }
+    
     if (selectedExpert) {
       return {
         name: selectedExpert.name,
@@ -126,7 +159,7 @@ export default function ExpertDetailsPanel({ selectedExpert, expert }: ExpertDet
           buildSampleResponses() || selectedExpert.screeningResponses || defaultExpert.screeningResponses,
       };
     }
-    // If no selected expert, prefer campaign-based sample responses when possible
+    // If no selected expert but experts exist, prefer campaign-based sample responses when possible
     const base = expert || defaultExpert;
     return {
       ...base,
@@ -135,6 +168,26 @@ export default function ExpertDetailsPanel({ selectedExpert, expert }: ExpertDet
   };
 
   const expertData = getExpertData();
+
+  // Show empty state when no expert is selected or no experts exist
+  if (!selectedExpert || !hasExperts) {
+    return (
+      <div className="card h-full w-full flex flex-col overflow-hidden pb-0 px-3 pt-3">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-title font-semibold text-light-text dark:text-dark-text">
+            Expert Details
+          </h3>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <EmptyState
+            icon={<Users className="w-16 h-16 text-light-text-tertiary dark:text-dark-text-tertiary" />}
+            title="No Expert Selected"
+            description="Please select an expert from the Proposed Experts panel to view their details."
+          />
+        </div>
+      </div>
+    );
+  }
 
   const handleRatingChange = (category: keyof typeof ratings, rating: number) => {
     setRatings(prev => ({ ...prev, [category]: rating }));
@@ -256,6 +309,7 @@ export default function ExpertDetailsPanel({ selectedExpert, expert }: ExpertDet
           {/* Skills Section */}
           <div>
             <h5 className="font-semibold text-light-text dark:text-dark-text mb-3">Skills</h5>
+            {expertData.skills.length > 0 ? (
             <div className="gap-2 min-w-0 flex flex-wrap">
               {expertData.skills.map((skill, index) => (
                 <span
@@ -270,11 +324,15 @@ export default function ExpertDetailsPanel({ selectedExpert, expert }: ExpertDet
                 </span>
               ))}
             </div>
+            ) : (
+              <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary">No skills listed.</p>
+            )}
           </div>
 
           {/* Screening Response Section */}
           <div>
             <h5 className="font-semibold text-light-text dark:text-dark-text mb-3">Screening response</h5>
+            {expertData.screeningResponses.length > 0 ? (
             <div className="space-y-4">
               {expertData.screeningResponses.map((response, index) => (
                 <div key={index} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
@@ -285,6 +343,9 @@ export default function ExpertDetailsPanel({ selectedExpert, expert }: ExpertDet
                 </div>
               ))}
             </div>
+            ) : (
+              <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary">No screening responses available.</p>
+            )}
           </div>
         </div>
       </div>

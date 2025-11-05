@@ -6,7 +6,27 @@ import { useCampaign } from "../../lib/campaign-context";
 import { usePathname } from "next/navigation";
 import { WorkspaceHeader } from "../layout";
 import { PanelSizing } from "../../types";
-import { ProposedExpert, mockProposedExperts } from "../../data/mockData";
+interface ProposedExpert {
+  id: string;
+  number: number;
+  vendor_id: string;
+  vendor_name: string;
+  company: string;
+  name: string;
+  title: string;
+  avatar: string;
+  isNew: boolean;
+  history: string;
+  rating: number;
+  aiFitScore: number;
+  status: "Awaiting Review" | "Reviewed";
+  description: string;
+  skills: string[];
+  screeningResponses: {
+    question: string;
+    answer: string;
+  }[];
+}
 import CampaignMetricsCardPanel from "./CampaignMetricsCardPanel";
 import ProposedExpertsPanel from "./ProposedExpertsPanel";
 import ExpertDetailsPanel from "./ExpertDetailsPanel";
@@ -28,6 +48,8 @@ export default function CampaignExpertsWorkspace() {
 
   // Selected expert state
   const [selectedExpert, setSelectedExpert] = useState<ProposedExpert | null>(null);
+  // Track whether experts exist
+  const [hasExperts, setHasExperts] = useState<boolean>(false);
 
   // Extract individual values for backward compatibility
   const { chatWidth, answerWidth, topHeight } = panelSizing;
@@ -64,12 +86,7 @@ export default function CampaignExpertsWorkspace() {
     }
   }, [isNewCampaign, campaignData, setCampaignData]);
 
-  // Initialize default selected expert to the first proposed expert
-  useEffect(() => {
-    if (!selectedExpert && mockProposedExperts && mockProposedExperts.length > 0) {
-      setSelectedExpert(mockProposedExperts[0]);
-    }
-  }, [selectedExpert]);
+  // Note: Selected expert will be set by ProposedExpertsPanel when user clicks on an expert
 
   // Dragging states
   const [draggingChatAnswer, setDraggingChatAnswer] = useState<boolean>(false);
@@ -194,7 +211,11 @@ export default function CampaignExpertsWorkspace() {
             </button>
           ) : (
               <div style={bottomCollapsed ? {} : { height: `${topHeight}%` }} className={bottomCollapsed ? "flex-1 min-h-0 w-full" : "w-full"}>
-                <ProposedExpertsPanel onExpertSelect={setSelectedExpert} selectedExpertId={selectedExpert?.id ?? null} />
+                <ProposedExpertsPanel 
+                  onExpertSelect={setSelectedExpert} 
+                  selectedExpertId={selectedExpert?.id ?? null}
+                  onExpertsChange={setHasExperts}
+                />
             </div>
           )}
 
@@ -234,7 +255,7 @@ export default function CampaignExpertsWorkspace() {
               </button>
             ) : (
               <div style={{ width: `${chatWidth}%` }} className="h-full">
-                <ExpertDetailsPanel selectedExpert={selectedExpert} />
+                <ExpertDetailsPanel selectedExpert={selectedExpert} hasExperts={hasExperts} />
               </div>
             )}
 

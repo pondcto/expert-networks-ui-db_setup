@@ -1,8 +1,9 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ChevronRight, ArrowUpDown, Download, Star, X } from "lucide-react";
 import { CompletedInterview } from "../../types";
-import { mockCompletedInterviews } from "../../data/mockData";
+import { useCampaign } from "../../lib/campaign-context";
+import * as api from "../../lib/api-client";
 import StarRating from "../shared/StarRating";
 import ToggleSwitch from "../shared/ToggleSwitch";
 
@@ -10,6 +11,9 @@ type SortColumn = "name" | "time" | "rating" | "duration";
 type SortDirection = "asc" | "desc";
 
 export default function InterviewCompletedPanel() {
+    const { campaignData } = useCampaign();
+    const [interviews, setInterviews] = useState<CompletedInterview[]>([]);
+    const [loading, setLoading] = useState(true);
     const [sortColumn, setSortColumn] = useState<SortColumn>("time");
     const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
     const [showReviewModal, setShowReviewModal] = useState(false);
@@ -21,6 +25,68 @@ export default function InterviewCompletedPanel() {
     });
     const [reviewText, setReviewText] = useState("");
     const [showReviews, setShowReviews] = useState(false);
+
+    // Load completed interviews from API
+    useEffect(() => {
+        const loadInterviews = async () => {
+            if (!campaignData?.id) {
+                setLoading(false);
+                return;
+            }
+
+            try {
+                const response = await api.getInterviews({ 
+                    campaign_id: campaignData.id, 
+                    status: 'completed' 
+                });
+                
+                // Helper function to format exact duration
+                const formatExactDuration = (minutes: number): string => {
+                    if (minutes < 60) {
+                        return `${minutes} min${minutes !== 1 ? 's' : ''}`;
+                    }
+                    const hours = Math.floor(minutes / 60);
+                    const remainingMinutes = minutes % 60;
+                    
+                    if (remainingMinutes === 0) {
+                        return `${hours} hour${hours !== 1 ? 's' : ''}`;
+                    }
+                    return `${hours} hour${hours !== 1 ? 's' : ''} ${remainingMinutes} min${remainingMinutes !== 1 ? 's' : ''}`;
+                };
+                
+                // Convert API interviews to CompletedInterview format
+                const completedInterviews: CompletedInterview[] = response.interviews.map((interview: api.Interview) => {
+                    const scheduledDate = new Date(interview.scheduled_date);
+                    const endDate = new Date(scheduledDate.getTime() + interview.duration_minutes * 60000);
+                    
+                    // Use expert avatar_url from database, fallback to images/experts/{expert_name}.png
+                    const expertAvatar = interview.expert_avatar_url || `/images/experts/${interview.expert_name.replace(/[^a-zA-Z0-9]/g, ' ')}.png`;
+                    
+                    return {
+                        id: interview.id,
+                        expertName: interview.expert_name,
+                        expertTitle: '', // Can be enhanced if expert title is available
+                        avatar: expertAvatar,
+                        interviewDate: scheduledDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                        interviewTime: `${scheduledDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })} - ${endDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`,
+                        duration: formatExactDuration(interview.duration_minutes),
+                        rating: null, // Rating can be added later if stored separately
+                        isActive: true,
+                        transcriptAvailable: !!interview.transcript_text,
+                    };
+                });
+
+                setInterviews(completedInterviews);
+            } catch (error) {
+                console.error('Error loading interviews:', error);
+                setInterviews([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadInterviews();
+    }, [campaignData?.id]);
 
     const handleSort = (column: SortColumn) => {
         if (sortColumn === column) {
@@ -84,13 +150,14 @@ export default function InterviewCompletedPanel() {
     };
 
     const parseDuration = (duration: string): number => {
-        if (duration.includes("hour")) {
-            const hours = parseFloat(duration);
-            return hours * 60;
-        } else if (duration.includes("min")) {
-            return parseFloat(duration);
-        }
-        return 0;
+        // Parse exact duration format like "1 hour 15 mins" or "45 mins" or "2 hours"
+        const hourMatch = duration.match(/(\d+)\s*hour/i);
+        const minMatch = duration.match(/(\d+)\s*min/i);
+        
+        const hours = hourMatch ? parseInt(hourMatch[1], 10) : 0;
+        const minutes = minMatch ? parseInt(minMatch[1], 10) : 0;
+        
+        return hours * 60 + minutes;
     };
 
     const parseDateTime = (date: string, time: string): Date => {
@@ -99,7 +166,7 @@ export default function InterviewCompletedPanel() {
     };
 
     const getSortedInterviews = () => {
-        const sorted = [...mockCompletedInterviews].sort((a, b) => {
+        const sorted = [...interviews].sort((a, b) => {
             let comparison = 0;
 
             switch (sortColumn) {
@@ -127,6 +194,36 @@ export default function InterviewCompletedPanel() {
         return sorted;
     };
 
+    if (loading) {
+        return (
+            <div className="card h-full w-full flex flex-col overflow-hidden pb-0 px-3 pt-3">
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-title font-semibold text-light-text dark:text-dark-text">
+                        Completed Interviews
+                    </h3>
+                </div>
+                <div className="flex-1 flex items-center justify-center">
+                    <div className="text-light-text-secondary dark:text-dark-text-secondary">Loading interviews...</div>
+                </div>
+            </div>
+        );
+    }
+
+    if (!campaignData?.id) {
+        return (
+            <div className="card h-full w-full flex flex-col overflow-hidden pb-0 px-3 pt-3">
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-title font-semibold text-light-text dark:text-dark-text">
+                        Completed Interviews
+                    </h3>
+                </div>
+                <div className="flex-1 flex items-center justify-center">
+                    <div className="text-light-text-secondary dark:text-dark-text-secondary">No campaign selected</div>
+                </div>
+            </div>
+        );
+    }
+
     return (    
         <div className="card h-full w-full flex flex-col overflow-hidden pb-0 px-3 pt-3">
             <div className="flex items-center justify-between mb-4">
@@ -138,6 +235,13 @@ export default function InterviewCompletedPanel() {
             </div>
             
             <div className="flex-1 overflow-y-auto">
+                {interviews.length === 0 ? (
+                    <div className="flex items-center justify-center h-full">
+                        <div className="text-light-text-secondary dark:text-dark-text-secondary">
+                            No completed interviews yet
+                        </div>
+                    </div>
+                ) : (
                 <table className="w-full">
                     <thead className="sticky top-0 bg-light-surface dark:bg-dark-surface border-b border-light-border dark:border-dark-border z-10">
                         <tr>
@@ -284,6 +388,7 @@ export default function InterviewCompletedPanel() {
                         ))}
                     </tbody>
                 </table>
+                )}
             </div>
 
             {/* Review Modal */}

@@ -465,7 +465,19 @@ export default function CampaignSettingsWorkspace() {
                     </button>
                   ) : (
                     <div style={{ width: `${100 - activitiesWidth - sourcesWidth}%` }}>
-                      <TeamMembersPanel onDataChange={handleTeamMembersChange} />
+                      <TeamMembersPanel 
+                        onDataChange={handleTeamMembersChange}
+                        onInviteMore={() => {
+                          // Ensure Team Members panel is expanded when invite is clicked
+                          // Calculate if panel would be collapsed with current widths
+                          const calculatedTeamWidth = 100 - activitiesWidth - sourcesWidth;
+                          if (calculatedTeamWidth <= 3) {
+                            // Panel is collapsed, expand it
+                            setActivitiesWidth(40);
+                            setSourcesWidth(28);
+                          }
+                        }}
+                      />
                     </div>
                   )}
                 </div>

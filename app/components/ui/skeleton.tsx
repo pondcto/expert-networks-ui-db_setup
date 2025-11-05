@@ -1,13 +1,50 @@
-import { cn } from "@/lib/utils"
+import React from 'react';
+import { cn } from '../../lib/utils';
 
-function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
-  return (
-    <div
-      data-slot="skeleton"
-      className={cn("bg-accent animate-pulse rounded-md", className)}
-      {...props}
-    />
-  )
+export interface SkeletonProps {
+  className?: string;
+  variant?: 'text' | 'circular' | 'rectangular';
+  width?: string | number;
+  height?: string | number;
+  animation?: 'pulse' | 'wave' | 'none';
 }
 
-export { Skeleton }
+export function Skeleton({
+  className,
+  variant = 'rectangular',
+  width,
+  height,
+  animation = 'pulse',
+}: SkeletonProps) {
+  const baseClasses = cn(
+    'bg-light-hover dark:bg-dark-hover',
+    animation === 'pulse' && 'animate-pulse',
+    animation === 'wave' && 'animate-[wave_2s_ease-in-out_infinite]',
+    variant === 'circular' && 'rounded-full',
+    variant === 'rectangular' && 'rounded',
+    variant === 'text' && 'rounded',
+    className
+  );
+
+  const style: React.CSSProperties = {
+    width: width || (variant === 'text' ? '100%' : undefined),
+    height: height || (variant === 'text' ? '1em' : undefined),
+  };
+
+  return <div className={baseClasses} style={style} />;
+}
+
+export function SkeletonText({ lines = 3, className }: { lines?: number; className?: string }) {
+  return (
+    <div className={cn('space-y-2', className)}>
+      {Array.from({ length: lines }).map((_, i) => (
+        <Skeleton
+          key={i}
+          variant="text"
+          width={i === lines - 1 ? '80%' : '100%'}
+          className="h-4"
+        />
+      ))}
+    </div>
+  );
+}

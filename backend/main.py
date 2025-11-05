@@ -33,6 +33,7 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 """
 
 import os
+from contextlib import asynccontextmanager
 from typing import List
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -47,6 +48,8 @@ from api.projects import router as projects_router
 from api.campaigns import router as campaigns_router
 from api.experts import router as experts_router
 from api.interviews import router as interviews_router
+from api.screening_questions import router as screening_questions_router
+from api.team_members import router as team_members_router
 
 
 # ============================================================================
@@ -54,7 +57,8 @@ from api.interviews import router as interviews_router
 # ============================================================================
 
 # CORS configuration from environment
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+# Default includes both common Next.js ports
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:3010").split(",")
 
 # Application metadata
 APP_TITLE = "Expert Networks API"
@@ -100,44 +104,16 @@ APP_CONTACT = {
 
 
 # ============================================================================
-# Application Instance
-# ============================================================================
-
-app = FastAPI(
-    title=APP_TITLE,
-    description=APP_DESCRIPTION,
-    version=APP_VERSION,
-    contact=APP_CONTACT,
-    docs_url="/docs",
-    redoc_url="/redoc",
-    openapi_url="/openapi.json",
-)
-
-
-# ============================================================================
-# Middleware Configuration
-# ============================================================================
-
-# CORS middleware for frontend access
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
-# ============================================================================
 # Lifecycle Events
 # ============================================================================
 
-@app.on_event("startup")
-async def on_startup():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     """
-    Application startup event.
-    Initializes database connection pool.
+    Application lifespan context manager.
+    Handles startup and shutdown events.
     """
+    # Startup
     print("=" * 60)
     print(f"{APP_TITLE} v{APP_VERSION}")
     print("=" * 60)
@@ -153,16 +129,42 @@ async def on_startup():
     print(f"📖 Alternative Docs: http://localhost:8000/redoc")
     print("=" * 60)
 
+    yield
 
-@app.on_event("shutdown")
-async def on_shutdown():
-    """
-    Application shutdown event.
-    Closes database connection pool.
-    """
+    # Shutdown
     print("\nShutting down application...")
     await shutdown_db()
     print("✓ Application shutdown complete")
+
+
+# ============================================================================
+# Application Instance
+# ============================================================================
+
+app = FastAPI(
+    title=APP_TITLE,
+    description=APP_DESCRIPTION,
+    version=APP_VERSION,
+    contact=APP_CONTACT,
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
+    lifespan=lifespan,
+)
+
+
+# ============================================================================
+# Middleware Configuration
+# ============================================================================
+
+# CORS middleware for frontend access
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # ============================================================================
@@ -258,6 +260,8 @@ app.include_router(projects_router)
 app.include_router(campaigns_router)
 app.include_router(experts_router)
 app.include_router(interviews_router)
+app.include_router(screening_questions_router)
+app.include_router(team_members_router)
 
 
 # ============================================================================

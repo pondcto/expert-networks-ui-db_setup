@@ -1,22 +1,124 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
-import { mockProposedExperts, mockVendorPlatforms, ProposedExpert, VendorPlatform } from "../../data/mockData";
-import { EyeIcon, Star } from "lucide-react";
+import { Star } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { LoadingSpinner } from "../ui/loading-spinner";
+import { ErrorMessage } from "../ui/error-message";
+import { EmptyState } from "../ui/empty-state";
+import { Users } from "lucide-react";
+import { useCampaign } from "../../lib/campaign-context";
+import { useApi } from "../../hooks/use-api";
+import * as api from "../../lib/api-client";
+
+interface ProposedExpert {
+  id: string;
+  number: number;
+  vendor_id: string;
+  vendor_name: string;
+  company: string;
+  name: string;
+  title: string;
+  avatar: string;
+  isNew: boolean;
+  history: string;
+  rating: number;
+  aiFitScore: number;
+  status: "Awaiting Review" | "Reviewed";
+  description: string;
+  skills: string[];
+  screeningResponses: {
+    question: string;
+    answer: string;
+  }[];
+}
 
 interface ProposedExpertsPanelProps {
   onExpertSelect?: (expert: ProposedExpert) => void;
   selectedExpertId?: string | null;
+  onExpertsChange?: (hasExperts: boolean) => void;
 }
 
-export default function ProposedExpertsPanel({ onExpertSelect, selectedExpertId }: ProposedExpertsPanelProps) {
+export default function ProposedExpertsPanel({ onExpertSelect, selectedExpertId, onExpertsChange }: ProposedExpertsPanelProps) {
+  const { campaignData } = useCampaign();
+  const [experts, setExperts] = useState<ProposedExpert[]>([]);
   const [selectedExperts, setSelectedExperts] = useState<Set<string>>(new Set());
   const [selectAll, setSelectAll] = useState(false);
 
-  const getVendorById = (vendorId: string): VendorPlatform | undefined => {
-    return mockVendorPlatforms.find(vendor => vendor.id === vendorId);
+  // Load vendors
+  const { data: vendors } = useApi(api.getVendors);
+
+  // Load experts for this campaign
+  const loadExperts = useCallback(async () => {
+    if (!campaignData?.id) {
+      return { experts: [], total: 0 };
+    }
+
+    const vendorsData = vendors || await api.getVendors();
+    const expertsResponse = await api.getExperts({ campaign_id: campaignData.id });
+    
+    // Convert API experts to ProposedExpert format
+    const proposedExperts: ProposedExpert[] = expertsResponse.experts.map((expert, index) => {
+      const expertAvatar = expert.avatar_url || `/images/experts/${expert.expert_name.replace(/[^a-zA-Z0-9]/g, '_')}.png`;
+      
+      return {
+        id: expert.id,
+        number: index + 1,
+        vendor_id: expert.vendor_platform_id,
+        vendor_name: expert.vendor_name,
+        company: expert.current_company || '',
+        name: expert.expert_name,
+        title: expert.current_title || '',
+        avatar: expertAvatar,
+        isNew: expert.status === 'proposed',
+        history: expert.work_history || '',
+        rating: expert.rating != null ? Number(expert.rating) : 4.0,
+        aiFitScore: expert.relevance_score != null ? Math.round(Number(expert.relevance_score)) : 7,
+        status: expert.status === 'reviewed' || expert.status === 'approved' ? 'Reviewed' : 'Awaiting Review',
+        description: expert.bio || '',
+        skills: expert.expertise_areas || [],
+        screeningResponses: [],
+      };
+    });
+
+    // Automatically select the first expert if none is currently selected
+    if (proposedExperts.length > 0 && onExpertSelect && !selectedExpertId) {
+      onExpertSelect(proposedExperts[0]);
+    }
+
+    return { experts: proposedExperts, total: expertsResponse.total };
+  }, [campaignData?.id, vendors, onExpertSelect, selectedExpertId]);
+
+  const { data, loading, error, refetch } = useApi(loadExperts, {
+    enabled: !!campaignData?.id && !!vendors,
+  });
+
+  useEffect(() => {
+    if (data) {
+      setExperts(data.experts);
+      // Notify parent about experts availability
+      onExpertsChange?.(data.experts.length > 0);
+    } else {
+      // No data loaded yet, assume no experts
+      onExpertsChange?.(false);
+    }
+  }, [data, onExpertsChange]);
+  
+  // Also notify when experts array changes directly
+  useEffect(() => {
+    onExpertsChange?.(experts.length > 0);
+  }, [experts.length, onExpertsChange]);
+
+  // Notify parent when campaign changes or when there are no experts
+  useEffect(() => {
+    if (!campaignData?.id) {
+      onExpertsChange?.(false);
+    }
+  }, [campaignData?.id, onExpertsChange]);
+
+  const getVendorById = (vendorId: string): api.Vendor | undefined => {
+    return vendors?.find(vendor => vendor.id === vendorId);
   };
 
   const _handleExpertSelect = (expertId: string) => {
@@ -27,7 +129,7 @@ export default function ProposedExpertsPanel({ onExpertSelect, selectedExpertId 
       newSelected.add(expertId);
     }
     setSelectedExperts(newSelected);
-    setSelectAll(newSelected.size === mockProposedExperts.length);
+    setSelectAll(newSelected.size === experts.length);
   };
 
   const _handleSelectAll = () => {
@@ -35,7 +137,7 @@ export default function ProposedExpertsPanel({ onExpertSelect, selectedExpertId 
       setSelectedExperts(new Set());
       setSelectAll(false);
     } else {
-      setSelectedExperts(new Set(mockProposedExperts.map(expert => expert.id)));
+      setSelectedExperts(new Set(experts.map(expert => expert.id)));
       setSelectAll(true);
     }
   };
@@ -63,6 +165,74 @@ export default function ProposedExpertsPanel({ onExpertSelect, selectedExpertId 
       onExpertSelect(expert);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="card h-full w-full flex flex-col overflow-hidden pb-0 px-3 pt-3">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-title font-semibold text-light-text dark:text-dark-text">
+            Proposed Experts
+          </h3>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <LoadingSpinner size="lg" text="Loading experts..." />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="card h-full w-full flex flex-col overflow-hidden pb-0 px-3 pt-3">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-title font-semibold text-light-text dark:text-dark-text">
+            Proposed Experts
+          </h3>
+        </div>
+        <div className="flex-1 p-4">
+          <ErrorMessage error={error} onDismiss={() => refetch()} />
+        </div>
+      </div>
+    );
+  }
+
+  if (!campaignData?.id) {
+    return (
+      <div className="card h-full w-full flex flex-col overflow-hidden pb-0 px-3 pt-3">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-title font-semibold text-light-text dark:text-dark-text">
+            Proposed Experts
+          </h3>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <EmptyState
+            icon={<Users className="w-12 h-12" />}
+            title="No campaign selected"
+            description="Select a campaign to view proposed experts."
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (experts.length === 0) {
+    return (
+      <div className="card h-full w-full flex flex-col overflow-hidden pb-0 px-3 pt-3">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-title font-semibold text-light-text dark:text-dark-text">
+            Proposed Experts
+          </h3>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <EmptyState
+            icon={<Users className="w-12 h-12" />}
+            title="No experts proposed yet"
+            description="Enroll vendors to get expert proposals for this campaign."
+          />
+        </div>
+      </div>
+    );
+  }
 
   const renderStars = (rating: number) => {
     const stars = [] as React.ReactNode[];
@@ -105,7 +275,7 @@ export default function ProposedExpertsPanel({ onExpertSelect, selectedExpertId 
               </tr>
             </thead>
             <tbody>
-              {mockProposedExperts.map((expert) => (
+              {experts.map((expert) => (
                 <tr 
                   key={expert.id} 
                   className={`border-b border-light-border dark:border-dark-border hover:bg-light-hover dark:hover:bg-dark-hover cursor-pointer ${
@@ -142,13 +312,13 @@ export default function ProposedExpertsPanel({ onExpertSelect, selectedExpertId 
                       return vendor ? (
                         <div className="flex items-center gap-2 min-w-0">
                           <div className="w-6 h-6 rounded overflow-hidden bg-gray-100 dark:bg-gray-700 flex items-center justify-center flex-shrink-0">
-                            <Image src={vendor.logo} alt={vendor.name} width={24} height={24} className="object-contain" />
+                            <Image src={vendor.logo_url || '/images/vendor-logos/default.png'} alt={vendor.name} width={24} height={24} className="object-contain" />
                           </div>
                           <span className="text-sm font-medium text-light-text dark:text-dark-text truncate min-w-0">{vendor.name}</span>
                         </div>
                       ) : (
                         <span className="text-sm text-light-text-secondary dark:text-dark-text-secondary truncate block">
-                          {expert.company}
+                          {expert.vendor_name || expert.company}
                         </span>
                       );
                     })()}

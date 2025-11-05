@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Plus, Edit2, Trash2, Circle, Dot } from "lucide-react";
 import { useCampaign } from "../../lib/campaign-context";
+import * as api from "../../lib/api-client";
 
 export interface ScreeningQuestion {
   id: string;
@@ -17,170 +18,13 @@ export interface ScreeningQuestionsPanelProps {
   onDataChange?: (data: ScreeningQuestion[]) => void;
 }
 
-const mockQuestions: ScreeningQuestion[] = [
-  {
-    id: "1",
-    text: "Describe your experience running expert interviews in life sciences (therapeutic areas, geographies, seniority).",
-    subQuestions: [
-      { id: "1-1", text: "Therapeutic areas covered (e.g., oncology, rare disease, cardiology)" },
-      { id: "1-2", text: "Typical respondent profiles (e.g., KOLs, payors, procurement, ex-operators)" },
-      { id: "1-3", text: "Regions you’ve sourced in (US/EU/APAC/MEA) and language coverage" },
-    ],
-  },
-  {
-    id: "2",
-    text: "Sourcing speed and quality control – how do you balance speed vs. vetting?",
-    subQuestions: [
-      { id: "2-1", text: "Average time to first slate and to full fill for 10+ calls" },
-      { id: "2-2", text: "Vetting process and conflict/compliance checks" },
-      { id: "2-3", text: "No-show mitigation and rescheduling SLAs" },
-    ],
-  },
-  {
-    id: "3",
-    text: "What regulatory challenges have you navigated in healthcare research?",
-  },
-  {
-    id: "4",
-    text: "Describe your experience with digital transformation in financial services.",
-  },
-  {
-    id: "5",
-    text: "How do you approach change management in large organizations?",
-  },
-  {
-    id: "6",
-    text: "What fintech trends are you most excited about?",
-  },
-  {
-    id: "7",
-    text: "What is your experience with healthcare investment due diligence?",
-  },
-  {
-    id: "8",
-    text: "How do you evaluate technology companies for investment?",
-  },
-  {
-    id: "9",
-    text: "What sectors are you most bullish on for 2024-2025?",
-  },
-  {
-    id: "10",
-    text: "Describe your experience with AI/ML implementation in enterprise environments.",
-  },
-  {
-    id: "11",
-    text: "How do you approach cloud architecture for large-scale applications?",
-  },
-  {
-    id: "12",
-    text: "What are the biggest challenges in leading technical teams?",
-  },
-  {
-    id: "13",
-    text: "What is your experience with omnichannel retail strategies?",
-  },
-  {
-    id: "14",
-    text: "How do you approach consumer behavior analysis?",
-  },
-  {
-    id: "15",
-    text: "What digital marketing trends are most impactful for CPG brands?",
-  },
-  {
-    id: "16",
-    text: "Describe your experience with recommendation systems in e-commerce.",
-  },
-  {
-    id: "17",
-    text: "How do you approach A/B testing for ML models?",
-  },
-  {
-    id: "18",
-    text: "What are the biggest challenges in production ML systems?",
-  },
-  {
-    id: "19",
-    text: "What is your experience with SaaS product launches?",
-  },
-  {
-    id: "20",
-    text: "How do you approach B2B sales strategy for enterprise clients?",
-  },
-  {
-    id: "21",
-    text: "What partnership strategies work best for SaaS companies?",
-  },
-  {
-    id: "22",
-    text: "What is your experience with operational efficiency improvements?",
-  },
-  {
-    id: "23",
-    text: "How do you approach process optimization in complex organizations?",
-  },
-  {
-    id: "24",
-    text: "What change management methodologies do you use?",
-  },
-  {
-    id: "25",
-    text: "Describe your experience with competitive intelligence in consumer goods.",
-  },
-  {
-    id: "26",
-    text: "How do you approach consumer insights research?",
-  },
-  {
-    id: "27",
-    text: "What retail analytics trends are most important for brands?",
-  },
-  {
-    id: "28",
-    text: "What is your experience with technology sector investment analysis?",
-  },
-  {
-    id: "29",
-    text: "How do you approach financial modeling for high-growth companies?",
-  },
-  {
-    id: "30",
-    text: "What healthcare investment themes are you most excited about?",
-  },
-  {
-    id: "31",
-    text: "Describe your experience with supply chain optimization in manufacturing.",
-  },
-  {
-    id: "32",
-    text: "How do you approach lean manufacturing implementation?",
-  },
-  {
-    id: "33",
-    text: "What digital technologies are transforming manufacturing operations?",
-  },
-  {
-    id: "34",
-    text: "What is your experience with credit risk assessment in banking?",
-  },
-  {
-    id: "35",
-    text: "How do you approach stress testing for financial institutions?",
-  },
-  {
-    id: "36",
-    text: "What are the biggest challenges in regulatory compliance for banks?",
-  },
-];
-
 export default function ScreeningQuestionsPanel({
-  questions = mockQuestions,
+  questions = [],
   onAddQuestion,
   onImportQuestions,
   onDataChange,
 }: ScreeningQuestionsPanelProps) {
-  const { campaignData, saveCampaign, isNewCampaign } = useCampaign();
+  const { campaignData, isNewCampaign } = useCampaign();
   const [currentQuestions, setCurrentQuestions] = useState<ScreeningQuestion[]>(questions);
   const [newQuestionText, setNewQuestionText] = useState("");
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
@@ -188,23 +32,156 @@ export default function ScreeningQuestionsPanel({
   const [hoveredQuestionId, setHoveredQuestionId] = useState<string | null>(null);
   const [addingSubQuestionTo, setAddingSubQuestionTo] = useState<string | null>(null);
   const [newSubQuestionText, setNewSubQuestionText] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  // Load campaign data when it becomes available (but not while editing a question)
+  // Convert backend format to frontend format
+  const convertBackendToFrontend = (backendQuestions: api.ScreeningQuestion[]): ScreeningQuestion[] => {
+    return backendQuestions.map(q => ({
+      id: q.id,
+      text: q.question_text,
+      subQuestions: q.sub_questions ? convertBackendToFrontend(q.sub_questions) : undefined
+    }));
+  };
+
+
+  // Reset to empty for new campaigns and sync with campaignData
   useEffect(() => {
-    if (campaignData && campaignData.screeningQuestions && !editingQuestionId) {
-      setCurrentQuestions(campaignData.screeningQuestions as ScreeningQuestion[]);
+    if (isNewCampaign) {
+      // For new campaigns, use the screeningQuestions from campaignData (should be empty array)
+      const questions = campaignData?.screeningQuestions && Array.isArray(campaignData.screeningQuestions) 
+        ? (campaignData.screeningQuestions as ScreeningQuestion[]) 
+        : [];
+      setCurrentQuestions(questions);
     }
-  }, [campaignData, editingQuestionId]);
+  }, [isNewCampaign, campaignData?.screeningQuestions]);
 
-  // Auto-save helper for existing campaigns
-  const autoSave = async (newQuestions: ScreeningQuestion[]) => {
-    if (!isNewCampaign && campaignData?.id) {
-      try {
-        console.log('Auto-saving campaign after screening questions change...');
-        await saveCampaign({ screeningQuestions: newQuestions });
-      } catch (error) {
-        console.error('Failed to auto-save campaign:', error);
+  // Load screening questions from database when campaign is available
+  useEffect(() => {
+    const loadQuestions = async () => {
+      if (!isNewCampaign && campaignData?.id && !editingQuestionId) {
+        try {
+          setLoading(true);
+          const backendQuestions = await api.getScreeningQuestions(campaignData.id);
+          const frontendQuestions = convertBackendToFrontend(backendQuestions);
+          setCurrentQuestions(frontendQuestions);
+          onDataChange?.(frontendQuestions);
+        } catch (error) {
+          console.error('Failed to load screening questions:', error);
+          // If no questions exist yet, start with empty array
+          setCurrentQuestions([]);
+        } finally {
+          setLoading(false);
+        }
       }
+    };
+    
+    loadQuestions();
+  }, [campaignData?.id, isNewCampaign, editingQuestionId]);
+
+  // Save questions to database - simplified version that replaces all questions
+  const saveQuestionsToDatabase = async (questionsToSave: ScreeningQuestion[]) => {
+    if (isNewCampaign || !campaignData?.id) {
+      // For new campaigns, questions will be saved after campaign is created
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      // Get current questions from database
+      let existingQuestions: api.ScreeningQuestion[] = [];
+      try {
+        existingQuestions = await api.getScreeningQuestions(campaignData.id);
+      } catch (error: any) {
+        // If campaign doesn't have questions yet, that's fine - start with empty array
+        if (error.message?.includes('404') || error.message?.includes('not found')) {
+          existingQuestions = [];
+        } else {
+          throw error;
+        }
+      }
+      
+      // Delete all existing questions (sub-questions will be deleted via CASCADE)
+      for (const existing of existingQuestions) {
+        if (!existing.parent_question_id) {
+          // Only delete root questions, sub-questions will cascade
+          try {
+            await api.deleteScreeningQuestion(campaignData.id, existing.id);
+          } catch (error) {
+            console.error(`Failed to delete question ${existing.id}:`, error);
+            // Continue with other deletions
+          }
+        }
+      }
+      
+      // Create new questions from frontend format
+      const questionIdMap = new Map<string, string>(); // Map from frontend ID to backend ID
+      
+      // Create root questions first
+      for (let i = 0; i < questionsToSave.length; i++) {
+        const q = questionsToSave[i];
+        if (!q.text || !q.text.trim()) {
+          console.warn(`Skipping question ${i} - empty text`);
+          continue;
+        }
+        try {
+          const created = await api.createScreeningQuestion(campaignData.id, {
+            campaign_id: campaignData.id, // Required by backend model
+            question_text: q.text.trim(),
+            parent_question_id: null,
+            display_order: i
+          });
+          questionIdMap.set(q.id, created.id);
+        } catch (error: any) {
+          console.error(`Failed to create question "${q.text}":`, error);
+          throw new Error(`Failed to create question: ${error.message || error}`);
+        }
+      }
+      
+      // Create sub-questions
+      for (const q of questionsToSave) {
+        if (q.subQuestions && q.subQuestions.length > 0) {
+          const parentBackendId = questionIdMap.get(q.id);
+          if (!parentBackendId) {
+            console.warn(`Skipping sub-questions for question "${q.text}" - parent ID not found`);
+            continue;
+          }
+          
+          for (let i = 0; i < q.subQuestions.length; i++) {
+            const sq = q.subQuestions[i];
+            if (!sq.text || !sq.text.trim()) {
+              console.warn(`Skipping sub-question ${i} - empty text`);
+              continue;
+            }
+            try {
+              await api.createScreeningQuestion(campaignData.id, {
+                campaign_id: campaignData.id, // Required by backend model
+                question_text: sq.text.trim(),
+                parent_question_id: parentBackendId,
+                display_order: i
+              });
+            } catch (error: any) {
+              console.error(`Failed to create sub-question "${sq.text}":`, error);
+              throw new Error(`Failed to create sub-question: ${error.message || error}`);
+            }
+          }
+        }
+      }
+      
+      // Reload questions to get updated structure
+      const updatedQuestions = await api.getScreeningQuestions(campaignData.id);
+      const frontendQuestions = convertBackendToFrontend(updatedQuestions);
+      setCurrentQuestions(frontendQuestions);
+      onDataChange?.(frontendQuestions);
+    } catch (error: any) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('Failed to save screening questions:', errorMessage, error);
+      // Show user-friendly error message
+      alert(`Failed to save screening questions: ${errorMessage}`);
+      // Re-throw to let caller handle if needed
+      throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -215,18 +192,14 @@ export default function ScreeningQuestionsPanel({
         text: newQuestionText.trim(),
       };
       const newQuestions = [...currentQuestions, newQuestion];
-      console.log('ScreeningQuestions data change (add):', newQuestions);
       setCurrentQuestions(newQuestions);
       setNewQuestionText("");
       onAddQuestion?.(newQuestion);
       onDataChange?.(newQuestions);
-      await autoSave(newQuestions);
+      await saveQuestionsToDatabase(newQuestions);
     }
   };
 
-  const _handleImportQuestions = () => {
-    onImportQuestions?.();
-  };
 
   const handleEditQuestion = (questionId: string) => {
     const question = currentQuestions.find(q => q.id === questionId);
@@ -247,7 +220,7 @@ export default function ScreeningQuestionsPanel({
       setEditingQuestionId(null);
       setEditingText("");
       onDataChange?.(newQuestions);
-      await autoSave(newQuestions);
+      await saveQuestionsToDatabase(newQuestions);
     }
   };
 
@@ -260,7 +233,7 @@ export default function ScreeningQuestionsPanel({
     const newQuestions = currentQuestions.filter(q => q.id !== questionId);
     setCurrentQuestions(newQuestions);
     onDataChange?.(newQuestions);
-    await autoSave(newQuestions);
+    await saveQuestionsToDatabase(newQuestions);
   };
 
   // Sub-question handlers
@@ -286,7 +259,7 @@ export default function ScreeningQuestionsPanel({
       setNewSubQuestionText("");
       setAddingSubQuestionTo(null);
       onDataChange?.(newQuestions);
-      await autoSave(newQuestions);
+      await saveQuestionsToDatabase(newQuestions);
     }
   };
 
@@ -318,7 +291,7 @@ export default function ScreeningQuestionsPanel({
     
     setCurrentQuestions(newQuestions);
     onDataChange?.(newQuestions);
-    await autoSave(newQuestions);
+    await saveQuestionsToDatabase(newQuestions);
   };
 
   const handleDeleteSubQuestion = async (parentId: string, subQuestionId: string) => {
@@ -334,7 +307,7 @@ export default function ScreeningQuestionsPanel({
     
     setCurrentQuestions(newQuestions);
     onDataChange?.(newQuestions);
-    await autoSave(newQuestions);
+    await saveQuestionsToDatabase(newQuestions);
   };
 
   return (
@@ -343,6 +316,11 @@ export default function ScreeningQuestionsPanel({
         <h3 className="text-title font-semibold text-light-text dark:text-dark-text">
           Screening questions
         </h3>
+        {loading && (
+          <span className="text-sm text-light-text-secondary dark:text-dark-text-secondary">
+            Saving...
+          </span>
+        )}
       </div>
 
       <div className="flex-1 min-h-0 overflow-auto px-1 p-1">

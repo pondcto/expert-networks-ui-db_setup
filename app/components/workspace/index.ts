@@ -11,9 +11,6 @@ export { default as TeamMembersPanel } from "./TeamMembersPanel";
 export { default as ProposedExpertsPanel } from "./ProposedExpertsPanel";
 export { default as ExpertDetailsPanel } from "./ExpertDetailsPanel";
 
-// Re-export mock data for convenience
-export { mockVendorPlatforms, mockExpertProfile } from "../../data/mockData";
-
 // Type exports
 export type { ScreeningQuestionsPanelProps } from "./ScreeningQuestionsPanel";
 export type { CampaignBasicsPanelProps } from "./CampaignBasicsPanel";
@@ -21,13 +18,8 @@ export type { ScopeRefinementPanelProps } from "./ScopeRefinementPanel";
 export type { VendorSelectionPanelProps } from "./VendorSelectionPanel";
 export type { TeamMembersPanelProps } from "./TeamMembersPanel";
 
-// Re-export types from mockData for convenience
+// Re-export types (keeping for backward compatibility)
+// Note: These types should be moved to app/types/index.ts in the future
 export type {
-  ChatHistoryItem,
   ChatMessage,
-  ResearchActivity,
-  Source,
-  AnswerSection,
-  VendorPlatform,
-  ExpertProfile,
-} from "../../data/mockData";
+} from "./ChatHistoryPanel";

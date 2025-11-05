@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { 
   timeSlots, 
   daysOfWeek, 
@@ -12,81 +12,153 @@ import {
   isToday,
   parseISO,
   startOfDay,
-  isBefore
+  isBefore,
+  getTimeSlotPosition
 } from "../../utils/dateUtils";
-
+import { COLOR_TAGS, COLOR_DOTS, type ColorTag } from "../../utils/constants";
+import { formatTime } from "../../utils/formatting";
 import { Interview } from "../../types";
-import { mockInterviews } from "../../data";
+import { useCampaign } from "../../lib/campaign-context";
+import { useApi } from "../../hooks/use-api";
+import * as api from "../../lib/api-client";
+import { LoadingSpinner } from "../ui/loading-spinner";
+import { ErrorMessage } from "../ui/error-message";
+import { EmptyState } from "../ui/empty-state";
+import { Calendar } from "lucide-react";
+
+// Helper function to convert API interview to frontend format
+function convertApiInterviewToInterview(apiInterview: api.Interview): Interview {
+  const scheduledDate = new Date(apiInterview.scheduled_date);
+  const endDate = new Date(scheduledDate.getTime() + apiInterview.duration_minutes * 60000);
+  
+  // Determine color tag based on status
+  let colorTag: ColorTag = 'blue';
+  if (apiInterview.status === 'completed') {
+    colorTag = 'green';
+  } else if (apiInterview.status === 'cancelled') {
+    colorTag = 'red';
+  } else if (apiInterview.status === 'no_show') {
+    colorTag = 'orange';
+  }
+  
+  // Map API status to Interview status
+  let interviewStatus: "confirmed" | "pending" | "cancelled" | "completed" = "pending";
+  if (apiInterview.status === 'scheduled') {
+    interviewStatus = 'confirmed';
+  } else if (apiInterview.status === 'completed') {
+    interviewStatus = 'completed';
+  } else if (apiInterview.status === 'cancelled') {
+    interviewStatus = 'cancelled';
+  }
+  
+  return {
+    id: apiInterview.id,
+    expertName: apiInterview.expert_name,
+    time: formatTime(scheduledDate),
+    date: scheduledDate,
+    status: interviewStatus,
+    duration: apiInterview.duration_minutes,
+    endTime: formatTime(endDate),
+    colorTag: colorTag,
+    teamMembers: apiInterview.interviewer_name ? [apiInterview.interviewer_name] : [],
+  };
+}
 
 export default function InterviewCalendarPanel() {
-  const [currentWeek, setCurrentWeek] = useState(new Date()); // Current week
-  const [interviews] = useState<Interview[]>(mockInterviews);
+  const { campaignData } = useCampaign();
+  const [currentWeek, setCurrentWeek] = useState(new Date());
 
-  const weekStart = startOfWeek(currentWeek, { weekStartsOn: 0 });
-  const weekDays = generateWeekDays(currentWeek);
+  // Load interviews using custom hook
+  const loadInterviews = useCallback(async () => {
+    if (!campaignData?.id) {
+      return { interviews: [], total: 0 };
+    }
 
-  const handleNavigateWeek = (direction: "prev" | "next") => {
-    setCurrentWeek(navigateWeek(currentWeek, direction));
-  };
-
-  const getTimeSlotPosition = (time: string): number => {
-    const timeMap: { [key: string]: number } = {
-      "12:00 AM": 0, "1:00 AM": 1, "2:00 AM": 2, "3:00 AM": 3, "4:00 AM": 4, "5:00 AM": 5,
-      "6:00 AM": 6, "7:00 AM": 7, "8:00 AM": 8, "9:00 AM": 9, "10:00 AM": 10, "11:00 AM": 11,
-      "12:00 PM": 12, "1:00 PM": 13, "2:00 PM": 14, "3:00 PM": 15, "4:00 PM": 16, "5:00 PM": 17,
-      "6:00 PM": 18, "7:00 PM": 19, "8:00 PM": 20, "9:00 PM": 21, "10:00 PM": 22, "11:00 PM": 23
+    // Load all interviews for the campaign (no status filter)
+    // This ensures we see all interviews regardless of status
+    const response = await api.getInterviews({ 
+      campaign_id: campaignData.id
+      // No status filter - get all interviews
+    });
+    
+    return {
+      interviews: response.interviews.map(convertApiInterviewToInterview),
+      total: response.total
     };
-    return timeMap[time] || 0;
-  };
+  }, [campaignData?.id]);
 
-  const getInterviewsForDay = (date: Date): Interview[] => {
+  const { data, loading, error, refetch } = useApi(loadInterviews, {
+    enabled: !!campaignData?.id,
+  });
+
+  const interviews = data?.interviews || [];
+
+  const weekStart = useMemo(() => startOfWeek(currentWeek, { weekStartsOn: 0 }), [currentWeek]);
+  const weekDays = useMemo(() => generateWeekDays(currentWeek), [currentWeek]);
+
+  const handleNavigateWeek = useCallback((direction: "prev" | "next") => {
+    setCurrentWeek(navigateWeek(currentWeek, direction));
+  }, [currentWeek]);
+
+  const getInterviewsForDay = useCallback((date: Date): Interview[] => {
     return interviews.filter(interview => isSameDay(interview.date, date));
-  };
+  }, [interviews]);
 
-  const isPastDay = (date: Date): boolean => {
+  const isPastDay = useCallback((date: Date): boolean => {
     const today = startOfDay(new Date());
     const checkDate = startOfDay(date);
     return isBefore(checkDate, today);
-  };
+  }, []);
 
-  const getColorTagClass = (color?: string): string => {
-    switch (color) {
-      case "blue":
-        return "bg-blue-100 dark:bg-blue-950/40 border-blue-400 dark:border-blue-700/50 text-blue-900 dark:text-blue-300";
-      case "green":
-        return "bg-green-100 dark:bg-green-950/40 border-green-400 dark:border-green-700/50 text-green-900 dark:text-green-300";
-      case "purple":
-        return "bg-purple-100 dark:bg-purple-950/40 border-purple-400 dark:border-purple-700/50 text-purple-900 dark:text-purple-300";
-      case "orange":
-        return "bg-orange-100 dark:bg-orange-950/40 border-orange-400 dark:border-orange-700/50 text-orange-900 dark:text-orange-300";
-      case "red":
-        return "bg-red-100 dark:bg-red-950/40 border-red-400 dark:border-red-700/50 text-red-900 dark:text-red-300";
-      case "pink":
-        return "bg-pink-100 dark:bg-pink-950/40 border-pink-400 dark:border-pink-700/50 text-pink-900 dark:text-pink-300";
-      case "cyan":
-        return "bg-cyan-100 dark:bg-cyan-950/40 border-cyan-400 dark:border-cyan-700/50 text-cyan-900 dark:text-cyan-300";
-      case "yellow":
-        return "bg-yellow-100 dark:bg-yellow-950/40 border-yellow-400 dark:border-yellow-700/50 text-yellow-900 dark:text-yellow-300";
-      case "indigo":
-        return "bg-indigo-100 dark:bg-indigo-950/40 border-indigo-400 dark:border-indigo-700/50 text-indigo-900 dark:text-indigo-300";
-      default:
-        return "bg-gray-100 dark:bg-gray-900/40 border-gray-400 dark:border-gray-700/50 text-gray-900 dark:text-gray-300";
+  const getColorTagClass = useCallback((color?: string): string => {
+    if (!color || !(color in COLOR_TAGS)) {
+      return COLOR_TAGS.gray;
     }
-  };
+    return COLOR_TAGS[color as ColorTag];
+  }, []);
 
+  const getExpertColorDot = useCallback((color: string): string => {
+    if (!(color in COLOR_DOTS)) {
+      return COLOR_DOTS.gray;
+    }
+    return COLOR_DOTS[color as ColorTag];
+  }, []);
 
-  const getExpertColorDot = (color: string) => {
-    const colorMap: { [key: string]: string } = {
-      "blue": "bg-blue-500",
-      "green": "bg-green-500",
-      "purple": "bg-purple-500",
-      "orange": "bg-orange-500",
-      "red": "bg-red-500",
-      "pink": "bg-pink-500",
-      "cyan": "bg-cyan-500"
-    };
-    return colorMap[color] || "bg-gray-500";
-  };
+  // Loading state
+  if (loading) {
+    return (
+      <div className="h-full w-full flex items-center justify-center">
+        <LoadingSpinner size="lg" text="Loading interviews..." />
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="h-full w-full p-4">
+        <ErrorMessage error={error} onDismiss={() => refetch()} />
+      </div>
+    );
+  }
+
+  // Empty state
+  if (interviews.length === 0) {
+    return (
+      <div className="h-full w-full">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-title font-semibold text-light-text dark:text-dark-text">
+            Interview Calendar
+          </h3>
+        </div>
+        <EmptyState
+          icon={<Calendar className="w-12 h-12" />}
+          title="No interviews scheduled"
+          description="Interviews will appear here once they are scheduled for this campaign."
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="h-full w-full flex flex-col overflow-hidden">
@@ -95,15 +167,6 @@ export default function InterviewCalendarPanel() {
           <h3 className="text-title font-semibold text-light-text dark:text-dark-text mb-2">
             Interview Calendar
           </h3>
-          {/* Expert Color Legend */}
-          {/* <div className="flex gap-3 overflow-x-auto min-w-0 text-xs text-light-text-secondary dark:text-dark-text-secondary">
-            {interviews.map((interview, idx) => (
-              <div key={idx} className="flex items-center gap-1 flex-shrink-0 whitespace-nowrap">
-                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${getExpertColorDot(interview.colorTag || "gray")}`}></div>
-                <span className="truncate">{interview.expertName}</span>
-              </div>
-            ))}
-          </div> */}
         </div>
         <div className="flex items-center gap-2">
           <button 
@@ -207,6 +270,7 @@ export default function InterviewCalendarPanel() {
                           key={interview.id}
                           className={`absolute text-xs border-2 ${getColorTagClass(interview.colorTag)} group rounded`}
                           style={{
+                            width: '100%',
                             height: `${slotHeight}px`,
                             zIndex: 10
                           }}

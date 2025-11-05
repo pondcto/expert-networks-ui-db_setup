@@ -23,6 +23,7 @@ function NewCampaignContent() {
       briefDescription: "",
       expandedDescription: "",
       targetRegions: [],
+        customRegions: "",
       startDate: "Any",
       targetCompletionDate: "Any",
       minCalls: 5,

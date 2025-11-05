@@ -175,10 +175,12 @@ async def create_campaign(
                 "project_id": campaign_data.project_id,
                 "campaign_name": campaign_data.campaign_name,
                 "industry_vertical": campaign_data.industry_vertical,
+                "custom_industry": campaign_data.custom_industry,
                 "brief_description": campaign_data.brief_description,
                 "start_date": campaign_data.start_date,
                 "target_completion_date": campaign_data.target_completion_date,
                 "target_regions": campaign_data.target_regions,
+                "custom_regions": campaign_data.custom_regions,
                 "min_calls": campaign_data.min_calls,
                 "max_calls": campaign_data.max_calls,
                 "display_order": max_order["max_order"] + 1
@@ -227,16 +229,20 @@ async def update_campaign(
     """
     try:
         # Build update dict from non-None fields
-        update_fields = {
-            k: v for k, v in campaign_data.model_dump(exclude_unset=True).items()
-            if v is not None
-        }
+        # Special handling for project_id: allow None to unassign from project
+        update_fields = {}
+        for k, v in campaign_data.model_dump(exclude_unset=True).items():
+            if k == "project_id":
+                # Allow project_id to be None (to move to "Other Campaigns")
+                update_fields[k] = v
+            elif v is not None:
+                update_fields[k] = v
 
         if not update_fields:
             raise HTTPException(status_code=400, detail="No fields to update")
 
-        # Verify project exists if project_id provided
-        if "project_id" in update_fields and update_fields["project_id"]:
+        # Verify project exists if project_id provided and not None
+        if "project_id" in update_fields and update_fields["project_id"] is not None:
             project = await execute_query(
                 "SELECT id FROM expert_network.projects WHERE id = $1 AND user_id = $2",
                 update_fields["project_id"],
@@ -247,10 +253,12 @@ async def update_campaign(
                 raise HTTPException(status_code=404, detail="Project not found")
 
         # Update campaign
+        # Note: update_and_return will handle UUID casting for project_id in SET clause
+        # Cast campaign_id to UUID in the WHERE clause, but user_id is TEXT so no cast needed
         updated = await update_and_return(
             "campaigns",
             update_fields,
-            where="id = $1 AND user_id = $2",
+            where="id = $1::uuid AND user_id = $2::text",
             where_params=[campaign_id, user.user_id]
         )
 

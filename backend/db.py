@@ -21,6 +21,8 @@ Usage:
 import os
 from contextlib import asynccontextmanager
 from typing import Optional, List, Dict, Any
+from uuid import UUID
+from decimal import Decimal
 import asyncpg
 
 # Database connection from environment
@@ -77,6 +79,28 @@ async def get_db():
         yield connection
 
 
+def convert_uuids_to_strings(data: Any) -> Any:
+    """
+    Recursively convert UUID objects to strings and Decimal to float in dictionaries and lists.
+    
+    Args:
+        data: Dictionary, list, or other data structure
+        
+    Returns:
+        Data with UUIDs converted to strings and Decimals converted to float
+    """
+    if isinstance(data, dict):
+        return {key: convert_uuids_to_strings(value) for key, value in data.items()}
+    elif isinstance(data, list):
+        return [convert_uuids_to_strings(item) for item in data]
+    elif isinstance(data, UUID):
+        return str(data)
+    elif isinstance(data, Decimal):
+        return float(data)
+    else:
+        return data
+
+
 async def execute_query(
     query: str,
     *args,
@@ -93,15 +117,19 @@ async def execute_query(
         fetch_all: Return all rows as list of dicts
 
     Returns:
-        List of dicts, single dict, or None
+        List of dicts, single dict, or None (with UUIDs converted to strings)
     """
     async with get_db() as conn:
         if fetch_one:
             row = await conn.fetchrow(query, *args)
-            return dict(row) if row else None
+            if row:
+                result = dict(row)
+                return convert_uuids_to_strings(result)
+            return None
         elif fetch_all:
             rows = await conn.fetch(query, *args)
-            return [dict(row) for row in rows]
+            results = [dict(row) for row in rows]
+            return convert_uuids_to_strings(results)
         else:
             # Execute without fetching (INSERT, UPDATE, DELETE)
             await conn.execute(query, *args)
@@ -122,7 +150,7 @@ async def insert_and_return(
         schema: Schema name (default: expert_network)
 
     Returns:
-        Inserted row as dict
+        Inserted row as dict (with UUIDs converted to strings)
     """
     columns = list(data.keys())
     values = list(data.values())
@@ -156,7 +184,7 @@ async def update_and_return(
         schema: Schema name (default: expert_network)
 
     Returns:
-        Updated row as dict
+        Updated row as dict (with UUIDs converted to strings)
     """
     # Build SET clause
     set_parts = []
@@ -164,18 +192,45 @@ async def update_and_return(
     param_num = 1
 
     for col, val in data.items():
-        set_parts.append(f"{col} = ${param_num}")
+        # Check if this column is a UUID type and needs explicit casting
+        # For campaigns table, project_id is UUID (can be NULL)
+        if col == "project_id" and val is not None:
+            set_parts.append(f"{col} = ${param_num}::uuid")
+        else:
+            set_parts.append(f"{col} = ${param_num}")
         values.append(val)
         param_num += 1
 
     set_clause = ', '.join(set_parts)
 
     # Adjust WHERE clause parameter numbers
+    # Need to handle casts like $1::uuid and $2::text properly
+    # Replace in reverse order (highest number first) to avoid partial matches
     adjusted_where = where
-    for i, _ in enumerate(where_params):
-        adjusted_where = adjusted_where.replace(f'${i+1}', f'${param_num}')
-        values.append(where_params[i])
-        param_num += 1
+    where_param_start = param_num
+    
+    # Build replacement map
+    replacements = []
+    for i, param in enumerate(where_params):
+        param_number = i + 1
+        new_param_number = where_param_start + i
+        # Check for various cast types
+        for cast_type in ['::uuid', '::text', '::int', '::bigint']:
+            old_with_cast = f'${param_number}{cast_type}'
+            if old_with_cast in adjusted_where:
+                new_with_cast = f'${new_param_number}{cast_type}'
+                replacements.append((old_with_cast, new_with_cast))
+                break
+        else:
+            # No cast found, replace plain $N
+            old_without_cast = f'${param_number}'
+            new_without_cast = f'${new_param_number}'
+            replacements.append((old_without_cast, new_without_cast))
+        values.append(param)
+    
+    # Apply replacements in reverse order to avoid breaking higher-numbered params
+    for old, new in reversed(replacements):
+        adjusted_where = adjusted_where.replace(old, new)
 
     query = f"""
         UPDATE {schema}.{table}
@@ -265,14 +320,44 @@ async def enroll_vendor(campaign_id: str, vendor_id: str, user_id: str) -> Optio
             """,
             campaign_id, vendor_id
         )
-        return dict(result) if result else None
+        if result:
+            result_dict = dict(result)
+            return convert_uuids_to_strings(result_dict)
+        return None
 
 
 # Startup and shutdown hooks for FastAPI
 
+async def verify_schema():
+    """Verify that required schema columns exist."""
+    try:
+        # Check for client_name column in projects table
+        result = await execute_query(
+            """
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_schema = 'expert_network' 
+            AND table_name = 'projects' 
+            AND column_name = 'client_name'
+            """,
+            fetch_one=True
+        )
+        if not result:
+            print("[DB] WARNING: client_name column not found in projects table")
+            print("[DB] WARNING: Make sure migration 005_add_project_fields.sql has been applied")
+            return False
+        print("[DB] ✓ Schema verification passed: required columns exist")
+        return True
+    except Exception as e:
+        print(f"[DB] WARNING: Could not verify schema: {e}")
+        return False
+
+
 async def startup_db():
     """Initialize database pool on app startup."""
     await init_db_pool()
+    # Verify critical schema elements
+    await verify_schema()
 
 
 async def shutdown_db():

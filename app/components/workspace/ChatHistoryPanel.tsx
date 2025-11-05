@@ -1,22 +1,61 @@
 "use client";
 
-import React from "react";
-import { mockChatMessages, type ChatMessage } from "../../data/mockData";
+import React, { useState, useCallback } from "react";
+import { useApi } from "../../hooks/use-api";
+import { LoadingSpinner } from "../ui/loading-spinner";
+import { ErrorMessage } from "../ui/error-message";
+import { EmptyState } from "../ui/empty-state";
+import { MessageCircle } from "lucide-react";
+import * as api from "../../lib/api-client";
+
+export interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  created_at?: string;
+}
 
 export interface DeepResearchChatPanelProps {
+  interviewId?: string;
   messages?: ChatMessage[];
   onSendMessage?: (message: string) => void;
 }
 
 export default function DeepResearchChatPanel({
-  messages = mockChatMessages,
+  interviewId,
+  messages: propMessages,
   onSendMessage,
 }: DeepResearchChatPanelProps) {
-  const [inputValue, setInputValue] = React.useState("");
+  const [inputValue, setInputValue] = useState("");
+
+  // Load messages from API if interviewId is provided
+  // Note: Chat API endpoint not yet implemented in backend
+  // For now, use prop messages or empty array
+  const loadMessages = useCallback(async (): Promise<ChatMessage[]> => {
+    if (!interviewId) {
+      return propMessages || [];
+    }
+    
+    // TODO: Implement when chat API is available
+    // const response = await api.getInterviewMessages(interviewId);
+    // return response.messages;
+    
+    return propMessages || [];
+  }, [interviewId, propMessages]);
+
+  const { data, loading, error } = useApi(loadMessages, {
+    enabled: false, // Disabled until API is implemented
+  });
+
+  const messages = data || propMessages || [];
 
   const handleSend = () => {
-    if (inputValue.trim() && onSendMessage) {
-      onSendMessage(inputValue);
+    if (inputValue.trim()) {
+      if (onSendMessage) {
+        onSendMessage(inputValue);
+      }
+      // TODO: Send message to API when available
+      // await api.sendInterviewMessage(interviewId, inputValue);
       setInputValue("");
     }
   };
@@ -44,10 +83,36 @@ export default function DeepResearchChatPanel({
         </div>
       </div>
 
+      {/* Loading state */}
+      {loading && (
+        <div className="flex-1 flex items-center justify-center">
+          <LoadingSpinner size="md" text="Loading messages..." />
+        </div>
+      )}
+
+      {/* Error state */}
+      {error && !loading && (
+        <div className="flex-1 p-4">
+          <ErrorMessage error={error} variant="compact" />
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!loading && !error && messages.length === 0 && (
+        <div className="flex-1">
+          <EmptyState
+            icon={<MessageCircle className="w-12 h-12" />}
+            title="No messages yet"
+            description="Start a conversation by sending a message."
+          />
+        </div>
+      )}
+
       {/* Messages + overlay composer */}
-      <div className="relative flex-1 min-h-0">
-        <div className="h-full overflow-auto space-y-2 pr-1 pb-20">
-          {messages.map((m) => (
+      {!loading && !error && messages.length > 0 && (
+        <div className="relative flex-1 min-h-0">
+          <div className="h-full overflow-auto space-y-2 pr-1 pb-20">
+            {messages.map((m) => (
             <div
               key={m.id}
               className={
@@ -73,10 +138,10 @@ export default function DeepResearchChatPanel({
                 )}
               </div>
             </div>
-          ))}
-        </div>
+            ))}
+          </div>
 
-        {/* Overlay Composer */}
+          {/* Overlay Composer */}
         <div className="absolute left-2 right-6 bottom-2 z-40">
           <div className="pointer-events-auto relative">
             <input
@@ -94,7 +159,8 @@ export default function DeepResearchChatPanel({
             </button>
           </div>
         </div>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

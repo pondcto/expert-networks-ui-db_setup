@@ -183,10 +183,11 @@ async def update_project(
             raise HTTPException(status_code=400, detail="No fields to update")
 
         # Update project
+        # Cast project_id to UUID in WHERE clause, user_id is TEXT
         updated = await update_and_return(
             "projects",
             update_fields,
-            where="id = $1 AND user_id = $2",
+            where="id = $1::uuid AND user_id = $2::text",
             where_params=[project_id, user.user_id]
         )
 

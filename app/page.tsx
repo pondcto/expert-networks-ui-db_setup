@@ -10,6 +10,7 @@ import UserMenu from "./components/UserMenu";
 import NewProjectModal from "./components/NewProjectModal";
 import { Tooltip, TooltipTrigger, TooltipContent } from "./components/ui/tooltip";
 import { Sun, Moon, Calendar, FolderOpen, Plus, Trash2, GripVertical, Folder } from "lucide-react";
+import * as api from "./lib/api-client";
 
 // Column width keys for localStorage
 const COLUMN_WIDTHS_KEY = "dashboard_column_widths";
@@ -118,6 +119,7 @@ interface Campaign {
   // Accurate call tracking (optional, defaults to 0 if not present)
   completedCalls?: number;
   scheduledCalls?: number;
+  cancelledCalls?: number;
   teamMembers: { id: string; name: string; designation: string; avatar: string }[];
   createdAt: string;
   updatedAt: string;
@@ -414,11 +416,29 @@ function DraggableCampaignCardRow({
                 className="w-full bg-light-background-secondary dark:bg-dark-background-tertiary rounded-full h-2  flex overflow-hidden cursor-help"
               >
                 {(() => {
+                  const status = getCampaignStatus(campaign);
                   const targetCalls = estimatedCalls || 0;
-                  const performedCalls = Math.max(0, Math.min(campaign.completedCalls ?? 0, targetCalls));
-                  const scheduledCalls = Math.max(0, Math.min((campaign.scheduledCalls ?? 0), Math.max(0, targetCalls - performedCalls)));
-                  const performedPct = targetCalls > 0 ? (performedCalls / targetCalls) * 100 : 0;
-                  const scheduledPct = targetCalls > 0 ? (scheduledCalls / targetCalls) * 100 : 0;
+                  
+                  // For "Waiting" status, show 0%
+                  // For "Completed" status, show 100%
+                  // For "Active" status, calculate based on actual calls
+                  let performedPct = 0;
+                  let scheduledPct = 0;
+                  
+                  if (status.label === "Waiting") {
+                    performedPct = 0;
+                    scheduledPct = 0;
+                  } else if (status.label === "Completed") {
+                    performedPct = 100;
+                    scheduledPct = 0;
+                  } else {
+                    // Active status - calculate based on actual calls
+                    const performedCalls = Math.max(0, Math.min(campaign.completedCalls ?? 0, targetCalls));
+                    const scheduledCalls = Math.max(0, Math.min((campaign.scheduledCalls ?? 0), Math.max(0, targetCalls - performedCalls)));
+                    performedPct = targetCalls > 0 ? (performedCalls / targetCalls) * 100 : 0;
+                    scheduledPct = targetCalls > 0 ? (scheduledCalls / targetCalls) * 100 : 0;
+                  }
+                  
                   return (
                     <>
                       <div 
@@ -440,9 +460,27 @@ function DraggableCampaignCardRow({
             >
               <div className="text-xs">
                 {(() => {
+                  const status = getCampaignStatus(campaign);
                   const targetCalls = estimatedCalls || 0;
-                  const performedCalls = Math.max(0, Math.min(campaign.completedCalls ?? 0, targetCalls));
-                  const scheduledCalls = Math.max(0, Math.min((campaign.scheduledCalls ?? 0), Math.max(0, targetCalls - performedCalls)));
+                  
+                  // For "Waiting" status, show 0%
+                  // For "Completed" status, show 100%
+                  // For "Active" status, calculate based on actual calls
+                  let performedCalls = 0;
+                  let scheduledCalls = 0;
+                  
+                  if (status.label === "Waiting") {
+                    performedCalls = 0;
+                    scheduledCalls = 0;
+                  } else if (status.label === "Completed") {
+                    performedCalls = targetCalls;
+                    scheduledCalls = 0;
+                  } else {
+                    // Active status - use actual calls
+                    performedCalls = Math.max(0, Math.min(campaign.completedCalls ?? 0, targetCalls));
+                    scheduledCalls = Math.max(0, Math.min((campaign.scheduledCalls ?? 0), Math.max(0, targetCalls - performedCalls)));
+                  }
+                  
                   return (
                     <>
                       <span className="text-green-400">{performedCalls} performed</span>
@@ -704,10 +742,89 @@ function ProjectCard({
   );
 }
 
+// Helper function to convert API campaign to local Campaign format with team members
+async function convertApiCampaignToCampaign(c: api.Campaign, projects?: api.Project[]): Promise<Campaign> {
+  // Determine target calls from min/max
+  let target = 0;
+  if (typeof c.min_calls === 'number' && typeof c.max_calls === 'number') {
+    target = Math.max(0, Math.round((c.min_calls + c.max_calls) / 2));
+  }
+  
+  // Fetch interview counts by status from database
+  let completedCalls = 0;
+  let scheduledCalls = 0;
+  let cancelledCalls = 0;
+  try {
+    const [completedResponse, scheduledResponse, cancelledResponse] = await Promise.all([
+      api.getInterviews({ campaign_id: c.id, status: 'completed' }),
+      api.getInterviews({ campaign_id: c.id, status: 'scheduled' }),
+      api.getInterviews({ campaign_id: c.id, status: 'cancelled' })
+    ]);
+    completedCalls = completedResponse.total || 0;
+    scheduledCalls = scheduledResponse.total || 0;
+    cancelledCalls = cancelledResponse.total || 0;
+  } catch (error) {
+    // If interview counts fail to load, use interview_count as fallback
+    console.warn(`Failed to load interview counts for campaign ${c.id}:`, error);
+    completedCalls = c.interview_count || 0;
+    scheduledCalls = 0;
+  }
+  
+  // Fetch team members for this campaign
+  let teamMembers: { id: string; name: string; designation: string; avatar: string }[] = [];
+  try {
+    const teamMembersResponse = await api.getCampaignTeamMembers(c.id);
+    teamMembers = teamMembersResponse.map((member) => ({
+      id: member.id,
+      name: member.name,
+      designation: member.designation,
+      avatar: member.avatar_url || `/images/team-members/${member.name}.png`,
+    }));
+  } catch (error) {
+    // If team members fail to load, just use empty array
+    console.warn(`Failed to load team members for campaign ${c.id}:`, error);
+  }
+  
+  // Map project_id to project_code for grouping
+  // The API returns project_code, but if not available, look it up from project_id
+  let projectCode = c.project_code || '';
+  if (!projectCode && c.project_id && projects) {
+    const project = projects.find(p => p.id === c.project_id);
+    if (project) {
+      projectCode = project.project_code || project.id;
+    }
+  } else if (!projectCode && c.project_id) {
+    // Fallback: if projects not provided, use project_id as projectCode
+    // This will be fixed when projects are loaded
+    projectCode = c.project_id;
+  }
+  
+  return {
+    id: c.id,
+    campaignName: c.campaign_name,
+    projectCode: projectCode,
+    industryVertical: c.industry_vertical,
+    targetRegions: c.target_regions || [],
+    startDate: c.start_date,
+    targetCompletionDate: c.target_completion_date,
+    minCalls: c.min_calls || 0,
+    maxCalls: c.max_calls || 0,
+    estimatedCalls: target,
+    completedCalls,
+    scheduledCalls,
+    cancelledCalls,
+    teamMembers,
+    createdAt: c.created_at,
+    updatedAt: c.updated_at,
+    order: 0, // Will be set by grouping
+  };
+}
+
 function HomeContent() {
   const { theme, toggleTheme } = useTheme();
   const router = useRouter();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [projects, setProjects] = useState<api.Project[]>([]);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   
   // Delete confirmation modal state
@@ -772,244 +889,7 @@ function HomeContent() {
     });
   };
 
-  // Seed mock data into localStorage on first run (only if no campaigns exist)
-  const seedMockDataOnce = () => {
-    try {
-      const alreadySeeded = localStorage.getItem("mock_data_seeded_v1");
-      if (alreadySeeded) return;
-
-      // If there is at least one campaign, skip seeding
-      let hasCampaign = false;
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith("campaign_")) {
-          hasCampaign = true;
-          break;
-        }
-      }
-      if (hasCampaign) {
-        localStorage.setItem("mock_data_seeded_v1", "true");
-        return;
-      }
-
-      // Seed projects
-      const projectsToSeed = [
-        { key: "project_PROJ-001", value: { projectName: "AI/ML Market Research", projectCode: "PROJ-001", createdAt: "2025-10-28T10:28:37.461Z", updatedAt: "2025-10-29T15:35:50.340Z", order: 2 } },
-        { key: "project_PROJ-002", value: { projectName: "Healthcare Digital Transformation", projectCode: "PROJ-002", createdAt: "2025-10-28T10:28:52.199Z", updatedAt: "2025-10-29T15:35:50.340Z", order: 4 } },
-        { key: "project_PROJ-003", value: { projectName: "Financial Services Innovation", projectCode: "PROJ-003", createdAt: "2025-10-28T10:29:07.941Z", updatedAt: "2025-10-29T15:35:50.340Z", order: 3 } },
-        { key: "project_PROJ-004", value: { projectName: "Retail & E-commerce Strategy", projectCode: "PROJ-004", createdAt: "2025-10-28T10:29:22.949Z", updatedAt: "2025-10-29T15:35:50.340Z", order: 0 } },
-        { key: "project_PROJ-005", value: { projectName: "Manufacturing Optimization", projectCode: "PROJ-005", createdAt: "2025-10-28T10:29:35.821Z", updatedAt: "2025-10-29T15:35:50.340Z", order: 1 } },
-      ];
-
-      projectsToSeed.forEach(p => localStorage.setItem(p.key, JSON.stringify(p.value)));
-
-      // Seed campaigns
-      const campaignsToSeed: Array<{ key: string; value: Record<string, unknown> }> = [
-        {
-          key: "campaign_ac609ac8fae0c8fd",
-          value: {
-            campaignName: "EHR System Integration",
-            projectCode: "PROJ-002",
-            industryVertical: "Healthcare",
-            customIndustry: "",
-            briefDescription: "EHR System Integration",
-            expandedDescription: "",
-            targetRegions: ["North America", "Europe"],
-            startDate: "2025-10-20",
-            targetCompletionDate: "2025-10-26",
-            minCalls: 8,
-            maxCalls: 12,
-            teamMembers: [],
-            screeningQuestions: [],
-            selectedVendors: [],
-            proposedExperts: [],
-            id: "ac609ac8fae0c8fd",
-            createdAt: "2025-10-28T11:28:00.946Z",
-            updatedAt: "2025-10-29T15:46:00.028Z",
-            order: 0,
-          }
-        },
-        {
-          key: "campaign_e1a3616c55f154da",
-          value: {
-            campaignName: "AI Infrastructure Vendors",
-            projectCode: "PROJ-001",
-            industryVertical: "Technology",
-            customIndustry: "",
-            briefDescription: "AI Infrastructure Vendors",
-            expandedDescription: "",
-            targetRegions: ["Europe", "Asia Pacific"],
-            startDate: "2025-10-01",
-            targetCompletionDate: "2025-10-30",
-            minCalls: 10,
-            maxCalls: 14,
-            teamMembers: [
-              { id: "2", name: "Michael David", designation: "Data Analyst", avatar: "/images/avatar/Michael David.png" },
-              { id: "8", name: "Richard Alan", designation: "Business Analyst", avatar: "/images/avatar/Richard Alan.png" },
-              { id: "7", name: "Matthew Scott", designation: "Quality Analyst", avatar: "/images/avatar/Matthew Scott.png" },
-              { id: "3", name: "David Charles", designation: "Content Specialist", avatar: "/images/avatar/David Charles.png" },
-              { id: "1", name: "John Robert", designation: "Research Lead", avatar: "/images/avatar/John Robert.png" },
-            ],
-            screeningQuestions: [],
-            selectedVendors: [],
-            proposedExperts: [],
-            id: "e1a3616c55f154da",
-            createdAt: "2025-10-28T10:31:25.503Z",
-            updatedAt: "2025-10-29T15:45:52.188Z",
-            order: 2,
-          }
-        },
-        {
-          key: "campaign_210076ed1c11955b",
-          value: {
-            campaignName: "AI Ethics & Compliance",
-            projectCode: "PROJ-001",
-            industryVertical: "Technology",
-            customIndustry: "",
-            briefDescription: "AI Ethics & Compliance",
-            expandedDescription: "",
-            targetRegions: ["Middle East & Africa"],
-            startDate: "2025-10-26",
-            targetCompletionDate: "2025-10-29",
-            minCalls: 6,
-            maxCalls: 10,
-            teamMembers: [
-              { id: "10", name: "Thomas Edward", designation: "Market Analyst", avatar: "/images/avatar/Thomas Edward.png" },
-              { id: "9", name: "Robert James", designation: "UX Researcher", avatar: "/images/avatar/Robert James.png" },
-              { id: "7", name: "Matthew Scott", designation: "Quality Analyst", avatar: "/images/avatar/Matthew Scott.png" },
-              { id: "6", name: "James William", designation: "Technical Writer", avatar: "/images/avatar/James William.png" },
-              { id: "3", name: "David Charles", designation: "Content Specialist", avatar: "/images/avatar/David Charles.png" },
-              { id: "1", name: "John Robert", designation: "Research Lead", avatar: "/images/avatar/John Robert.png" },
-            ],
-            screeningQuestions: [],
-            selectedVendors: [],
-            proposedExperts: [],
-            id: "210076ed1c11955b",
-            createdAt: "2025-10-28T10:34:33.406Z",
-            updatedAt: "2025-10-29T15:45:52.187Z",
-            order: 1,
-          }
-        },
-        {
-          key: "campaign_4cbc6d42bd510f11",
-          value: {
-            campaignName: "Enterprise ML Platforms",
-            projectCode: "PROJ-001",
-            industryVertical: "Technology",
-            customIndustry: "",
-            briefDescription: "Enterprise ML Platforms",
-            expandedDescription: "",
-            targetRegions: ["North America", "Middle East & Africa"],
-            startDate: "2025-10-20",
-            targetCompletionDate: "2025-11-21",
-            minCalls: 30,
-            maxCalls: 40,
-            teamMembers: [
-              { id: "8", name: "Richard Alan", designation: "Business Analyst", avatar: "/images/avatar/Richard Alan.png" },
-              { id: "10", name: "Thomas Edward", designation: "Market Analyst", avatar: "/images/avatar/Thomas Edward.png" },
-            ],
-            screeningQuestions: [],
-            selectedVendors: [],
-            proposedExperts: [],
-            id: "4cbc6d42bd510f11",
-            createdAt: "2025-10-28T10:33:41.248Z",
-            updatedAt: "2025-10-29T15:45:52.188Z",
-            order: 3,
-          }
-        },
-        {
-          key: "campaign_4dcf7cf2faa79779",
-          value: {
-            campaignName: "Telemedicine Platform Adoption",
-            projectCode: "PROJ-004",
-            industryVertical: "Technology",
-            customIndustry: "",
-            briefDescription: "Telemedicine Platform Adoption",
-            expandedDescription: "",
-            targetRegions: ["Middle East & Africa", "Latin America"],
-            startDate: "2025-10-24",
-            targetCompletionDate: "2025-10-31",
-            minCalls: 10,
-            maxCalls: 14,
-            teamMembers: [
-              { id: "10", name: "Thomas Edward", designation: "Market Analyst", avatar: "/images/avatar/Thomas Edward.png" },
-              { id: "6", name: "James William", designation: "Technical Writer", avatar: "/images/avatar/James William.png" },
-              { id: "1", name: "John Robert", designation: "Research Lead", avatar: "/images/avatar/John Robert.png" },
-            ],
-            screeningQuestions: [],
-            selectedVendors: [],
-            proposedExperts: [],
-            id: "4dcf7cf2faa79779",
-            createdAt: "2025-10-28T10:35:20.261Z",
-            updatedAt: "2025-10-29T15:46:29.571Z",
-            order: 5,
-          }
-        },
-        {
-          key: "campaign_3b6b9b4677ffd51a",
-          value: {
-            campaignName: "IoT in Smart Factories",
-            projectCode: "PROJ-005",
-            industryVertical: "Manufacturing",
-            customIndustry: "",
-            briefDescription: "IoT in Smart Factories",
-            expandedDescription: "",
-            targetRegions: ["Latin America"],
-            startDate: "2025-10-29",
-            targetCompletionDate: "2025-11-20",
-            minCalls: 15,
-            maxCalls: 21,
-            teamMembers: [
-              { id: "1", name: "John Robert", designation: "Research Lead", avatar: "/images/avatar/John Robert.png" },
-              { id: "8", name: "Richard Alan", designation: "Business Analyst", avatar: "/images/avatar/Richard Alan.png" },
-              { id: "7", name: "Matthew Scott", designation: "Quality Analyst", avatar: "/images/avatar/Matthew Scott.png" },
-              { id: "6", name: "James William", designation: "Technical Writer", avatar: "/images/avatar/James William.png" },
-            ],
-            screeningQuestions: [],
-            selectedVendors: [],
-            proposedExperts: [],
-            id: "3b6b9b4677ffd51a",
-            createdAt: "2025-10-28T11:31:25.522Z",
-            updatedAt: "2025-10-29T15:46:08.299Z",
-            order: 4,
-          }
-        },
-        {
-          key: "campaign_95c5d6ae2b3547c4",
-          value: {
-            campaignName: "Digital Banking Platforms",
-            projectCode: "PROJ-003",
-            industryVertical: "Finance",
-            customIndustry: "",
-            briefDescription: "Digital Banking Platforms",
-            expandedDescription: "",
-            targetRegions: ["Asia Pacific", "Europe"],
-            startDate: "2025-10-29",
-            targetCompletionDate: "2025-11-12",
-            minCalls: 12,
-            maxCalls: 18,
-            teamMembers: [
-              { id: "6", name: "James William", designation: "Technical Writer", avatar: "/images/avatar/James William.png" },
-              { id: "5", name: "Daniel Paul", designation: "Project Manager", avatar: "/images/avatar/Daniel Paul.png" },
-            ],
-            screeningQuestions: [],
-            selectedVendors: [],
-            proposedExperts: [],
-            id: "95c5d6ae2b3547c4",
-            createdAt: "2025-10-28T11:32:30.986Z",
-            updatedAt: "2025-10-29T15:46:15.919Z",
-            order: 6,
-          }
-        },
-      ];
-
-      campaignsToSeed.forEach(c => localStorage.setItem(c.key, JSON.stringify(c.value)));
-
-      localStorage.setItem("mock_data_seeded_v1", "true");
-    } catch (e) {
-      console.error("Error seeding mock data", e);
-    }
-  };
+  // Mock data seeding removed - now using API
 
   // Set up drag sensors
   const sensors = useSensors(
@@ -1020,104 +900,33 @@ function HomeContent() {
     })
   );
 
-  // Load campaigns from localStorage
+  // Load campaigns from API
   useEffect(() => {
-    const loadCampaigns = () => {
-      // Seed once before loading
-      seedMockDataOnce();
-      const allCampaigns: Campaign[] = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith("campaign_")) {
-          try {
-            const data = localStorage.getItem(key);
-            if (data) {
-              const parsed: Campaign = JSON.parse(data);
-              // Determine target calls from min/max or estimatedCalls
-              let target = 0;
-              if (typeof parsed.minCalls === 'number' && typeof parsed.maxCalls === 'number') {
-                target = Math.max(0, Math.round((parsed.minCalls + parsed.maxCalls) / 2));
-              } else if (typeof parsed.estimatedCalls === 'number') {
-                target = Math.max(0, parsed.estimatedCalls);
-              }
-
-              // If missing, generate mock calls progress consistent with status
-              if (parsed.completedCalls === undefined || parsed.scheduledCalls === undefined) {
-                const status = getCampaignStatus(parsed);
-                const rand = (max: number) => Math.floor(Math.random() * (Math.max(0, max) + 1));
-
-                if (target > 0) {
-                  if ((status.label || '').toLowerCase().startsWith('Waiting')) {
-                    parsed.completedCalls = 0;
-                    parsed.scheduledCalls = 0;
-                  } else if ((status.label || '') === 'Completed') {
-                    parsed.completedCalls = target;
-                    parsed.scheduledCalls = 0;
-                  } else {
-                    // Active: random realistic distribution capped below target
-                    const maxCompleted = Math.floor(target * 0.6);
-                    const completed = rand(maxCompleted);
-                    const remaining = Math.max(0, target - completed);
-                    const maxScheduled = Math.floor(remaining * 0.6);
-                    const scheduled = rand(maxScheduled);
-                    parsed.completedCalls = completed;
-                    parsed.scheduledCalls = scheduled;
-                  }
-                } else {
-                  parsed.completedCalls = parsed.completedCalls ?? 0;
-                  parsed.scheduledCalls = parsed.scheduledCalls ?? 0;
-                }
-
-                // Persist back so values are stable across reloads
-                try { localStorage.setItem(key, JSON.stringify(parsed)); } catch {}
-              }
-
-              // Safety clamp
-              if (target > 0 && typeof parsed.completedCalls === 'number' && typeof parsed.scheduledCalls === 'number') {
-                const cappedCompleted = Math.min(parsed.completedCalls, target);
-                const cappedScheduled = Math.min(parsed.scheduledCalls, Math.max(0, target - cappedCompleted));
-                if (cappedCompleted !== parsed.completedCalls || cappedScheduled !== parsed.scheduledCalls) {
-                  parsed.completedCalls = cappedCompleted;
-                  parsed.scheduledCalls = cappedScheduled;
-                  try { localStorage.setItem(key, JSON.stringify(parsed)); } catch {}
-                }
-              }
-
-              allCampaigns.push(parsed);
-            }
-          } catch (error) {
-            console.error("Error parsing campaign data:", error);
-          }
-        }
-      }
+    const loadCampaigns = async () => {
+      try {
+        const response = await api.getCampaigns();
+        const apiCampaigns = response.campaigns;
+        
+        // Load projects first to map project_id to project_code
+        const projectsList = await api.getProjects();
+        
+        // Convert API campaigns to local Campaign format and load team members
+        const allCampaigns: Campaign[] = await Promise.all(
+          apiCampaigns.map((c: api.Campaign) => convertApiCampaignToCampaign(c, projectsList))
+        );
+        
       // Sort by most recent first
       allCampaigns.sort((a, b) => 
         new Date(b.updatedAt || b.createdAt).getTime() - 
         new Date(a.updatedAt || a.createdAt).getTime()
       );
       
-      // Initialize order field for campaigns that don't have it
-      // Group by project and assign order within each project
-      const projectGroups = new Map<string, Campaign[]>();
-      allCampaigns.forEach(campaign => {
-        const projectCode = campaign.projectCode || '';
-        if (!projectGroups.has(projectCode)) {
-          projectGroups.set(projectCode, []);
-        }
-        projectGroups.get(projectCode)!.push(campaign);
-      });
-      
-      // Assign order within each project group
-      projectGroups.forEach((campaigns) => {
-        campaigns.forEach((campaign, index) => {
-          if (campaign.order === undefined) {
-            campaign.order = index;
-            localStorage.setItem(`campaign_${campaign.id}`, JSON.stringify(campaign));
-          }
-        });
-      });
-      
       setCampaigns(allCampaigns);
+      } catch (error) {
+        console.error("Error loading campaigns from API:", error);
+        // Fallback to empty array on error
+        setCampaigns([]);
+      }
     };
 
     loadCampaigns();
@@ -1138,11 +947,11 @@ function HomeContent() {
     };
   }, []);
 
-  // Update grouped projects and initialize widths when campaigns change
+  // Update grouped projects and initialize widths when campaigns or projects change
   useEffect(() => {
-    const projects = groupCampaignsByProject();
-    setGroupedProjects(projects);
-  }, [campaigns]);
+    const grouped = groupCampaignsByProject();
+    setGroupedProjects(grouped);
+  }, [campaigns, projects]);
 
   // Calculate campaign status based on dates
   const getCampaignStatus = (campaign: Campaign) => {
@@ -1177,7 +986,7 @@ function HomeContent() {
     setActiveDragId(event.active.id as string);
   };
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveDragId(null);
 
@@ -1210,19 +1019,36 @@ function HomeContent() {
         // Reorder projects
         const reorderedProjects = arrayMove(groupedProjects, oldIndex, newIndex);
         
-        // Update order field for all projects
-        reorderedProjects.forEach((project, index) => {
-          if (project.isRealProject) {
-            try {
-              const projectData = JSON.parse(localStorage.getItem(`project_${project.projectCode}`) || '{}');
-              projectData.order = index;
-              projectData.updatedAt = new Date().toISOString();
-              localStorage.setItem(`project_${project.projectCode}`, JSON.stringify(projectData));
-            } catch (error) {
-              console.error('Error updating project order:', error);
-            }
-          }
-        });
+        // Update display_order for all projects in the database
+        try {
+          await Promise.all(
+            reorderedProjects.map(async (project, index) => {
+              if (project.isRealProject) {
+                // Find the project in the projects list to get its ID
+                const projectInfo = projects.find((p: api.Project) => 
+                  (p.project_code || p.id) === project.projectCode
+                );
+                
+                if (projectInfo) {
+                  // Update display_order via API
+                  await api.updateProject(projectInfo.id, {
+                    display_order: index
+                  });
+                }
+              }
+            })
+          );
+          
+          // Reload projects to get updated order
+          const updatedProjects = await api.getProjects();
+          setProjects(updatedProjects);
+        } catch (error) {
+          console.error('Error updating project order:', error);
+          alert(`Failed to save project order: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          // Revert to previous order on error
+          setGroupedProjects(groupedProjects);
+          return;
+        }
         
         // Update state
         setGroupedProjects(reorderedProjects);
@@ -1284,21 +1110,38 @@ function HomeContent() {
         // Dropping on a campaign in a different project - move to that project
         const targetProjectCode = overCampaign.projectCode;
         
-        // Update the campaign's projectCode
+        // Find the target project to get its project_id (UUID)
+        const targetProject = projects.find(p => 
+          (p.project_code || p.id) === targetProjectCode
+        );
+        
+        if (!targetProject) {
+          console.error(`Target project not found for projectCode: ${targetProjectCode}`);
+          return;
+        }
+        
+        // Update the campaign's project_id in the database
+        try {
+          await api.updateCampaign(draggedCampaign.id, {
+            project_id: targetProject.id
+          });
+          
+          // Update the campaign's projectCode in local state
         const updatedCampaign = {
           ...draggedCampaign,
           projectCode: targetProjectCode,
           updatedAt: new Date().toISOString()
         };
 
-        // Save to localStorage
-        localStorage.setItem(`campaign_${draggedCampaignId}`, JSON.stringify(updatedCampaign));
-
         // Update state
         setCampaigns(prev => prev.map(c => c.id === draggedCampaignId ? updatedCampaign : c));
 
         // Dispatch event to update sidebar
         window.dispatchEvent(new CustomEvent('campaignSaved'));
+        } catch (error) {
+          console.error('Failed to move campaign to different project:', error);
+          alert(`Failed to move campaign: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
         return; // Done with moving
       }
     }
@@ -1309,21 +1152,44 @@ function HomeContent() {
     // If dropped on the same project (droppable area), do nothing
     if (draggedCampaign.projectCode === targetProjectCode) return;
 
-    // Update the campaign's projectCode
+    // Find the target project to get its project_id (UUID)
+    // If "Other Campaigns", set project_id to null
+    let targetProjectId: string | null = null;
+    if (targetProjectCode !== "Other Campaigns") {
+      const targetProject = projects.find(p => 
+        (p.project_code || p.id) === targetProjectCode
+      );
+      
+      if (!targetProject) {
+        console.error(`Target project not found for projectCode: ${targetProjectCode}`);
+        return;
+      }
+      
+      targetProjectId = targetProject.id;
+    }
+
+    // Update the campaign's project_id in the database
+    try {
+      await api.updateCampaign(draggedCampaign.id, {
+        project_id: targetProjectId
+      });
+      
+      // Update the campaign's projectCode in local state
     const updatedCampaign = {
       ...draggedCampaign,
       projectCode: targetProjectCode === "Other Campaigns" ? "" : targetProjectCode,
       updatedAt: new Date().toISOString()
     };
 
-    // Save to localStorage
-    localStorage.setItem(`campaign_${draggedCampaignId}`, JSON.stringify(updatedCampaign));
-
     // Update state
     setCampaigns(prev => prev.map(c => c.id === draggedCampaignId ? updatedCampaign : c));
 
     // Dispatch event to update sidebar
     window.dispatchEvent(new CustomEvent('campaignSaved'));
+    } catch (error) {
+      console.error('Failed to move campaign to different project:', error);
+      alert(`Failed to move campaign: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
   // Delete campaign
@@ -1337,10 +1203,20 @@ function HomeContent() {
     }
   };
 
-  const confirmDeleteCampaign = () => {
+  const confirmDeleteCampaign = async () => {
     if (campaignToDelete) {
-      localStorage.removeItem(`campaign_${campaignToDelete.id}`);
-      setCampaigns(campaigns.filter(c => c.id !== campaignToDelete.id));
+      try {
+        await api.deleteCampaign(campaignToDelete.id);
+        
+        // Reload campaigns from API
+        const [campaignsResponse, projectsList] = await Promise.all([
+          api.getCampaigns(),
+          api.getProjects()
+        ]);
+        const apiCampaigns = await Promise.all(
+          campaignsResponse.campaigns.map((c: api.Campaign) => convertApiCampaignToCampaign(c, projectsList))
+        );
+        setCampaigns(apiCampaigns);
       
       // Dispatch event to update sidebar
       window.dispatchEvent(new CustomEvent('campaignSaved'));
@@ -1348,6 +1224,10 @@ function HomeContent() {
       // Close modal and reset state
       setIsDeleteModalOpen(false);
       setCampaignToDelete(null);
+      } catch (error) {
+        console.error("Error deleting campaign:", error);
+        alert("Failed to delete campaign. Please try again.");
+      }
     }
   };
 
@@ -1365,35 +1245,39 @@ function HomeContent() {
     setIsProjectDeleteModalOpen(true);
   };
 
-  const confirmDeleteProject = () => {
+  const confirmDeleteProject = async () => {
     if (projectToDelete) {
-      // Remove project from localStorage
-      localStorage.removeItem(`project_${projectToDelete.code}`);
-      
-      // Move all campaigns in this project to "Other Campaigns" by clearing their projectCode
-      const updatedCampaigns = campaigns.map(campaign => {
-        if (campaign.projectCode === projectToDelete.code) {
-          const updatedCampaign = {
-            ...campaign,
-            projectCode: "",
-            updatedAt: new Date().toISOString()
-          };
-          // Update in localStorage
-          localStorage.setItem(`campaign_${campaign.id}`, JSON.stringify(updatedCampaign));
-          return updatedCampaign;
-        }
-        return campaign;
-      });
-      
-      setCampaigns(updatedCampaigns);
+      try {
+        // Find the project by code to get its ID
+        const project = projects.find((p: api.Project) => (p.project_code || p.id) === projectToDelete.code);
+        if (project) {
+          await api.deleteProject(project.id);
+          
+          // Reload projects and campaigns from API
+          const [apiProjects, campaignsResponse] = await Promise.all([
+            api.getProjects(),
+            api.getCampaigns()
+          ]);
+          setProjects(apiProjects);
+          
+          // Convert API campaigns to local format with team members
+          const apiCampaigns = await Promise.all(
+            campaignsResponse.campaigns.map((c: api.Campaign) => convertApiCampaignToCampaign(c, apiProjects))
+          );
+          setCampaigns(apiCampaigns);
       
       // Dispatch events to update sidebar and refresh
       window.dispatchEvent(new CustomEvent('projectSaved'));
       window.dispatchEvent(new CustomEvent('campaignSaved'));
+        }
       
       // Close modal and reset state
       setIsProjectDeleteModalOpen(false);
       setProjectToDelete(null);
+      } catch (error) {
+        console.error("Error deleting project:", error);
+        alert("Failed to delete project. Please try again.");
+      }
     }
   };
 
@@ -1403,84 +1287,86 @@ function HomeContent() {
   };
 
   // Handle new project creation
-  const handleNewProject = (projectData: { projectName: string; projectCode: string }) => {
-    // Count existing projects to set order
-    let projectCount = 0;
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith('project_')) {
-        projectCount++;
-      }
-    }
-    
-    const project = {
-      ...projectData,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      order: projectCount, // Initialize with current count
-    };
-    
-    // Save to localStorage
-    localStorage.setItem(`project_${project.projectCode}`, JSON.stringify(project));
+  const handleNewProject = async (projectData: { projectName: string; projectCode: string }) => {
+    try {
+      await api.createProject({
+        project_name: projectData.projectName,
+        project_code: projectData.projectCode,
+      });
+      
+      // Reload projects from API
+      const apiProjects = await api.getProjects();
+      setProjects(apiProjects);
     
     // Dispatch event to update sidebar and dashboard
     window.dispatchEvent(new CustomEvent('projectSaved'));
     
     // Close modal
     setIsNewProjectModalOpen(false);
+    } catch (error) {
+      console.error("Error creating project:", error);
+      alert("Failed to create project. Please try again.");
+    }
   };
 
-  // Get project info from localStorage
+  // Get project info from API projects
   const getProjectInfo = (projectCode: string): { projectName: string; isRealProject: boolean } => {
-    try {
-      const projectData = localStorage.getItem(`project_${projectCode}`);
-      if (projectData) {
-        const project = JSON.parse(projectData);
+    if (projectCode === "Other Campaigns") {
         return {
-          projectName: project.projectName || projectCode,
+        projectName: "Other Campaigns",
+        isRealProject: false
+      };
+    }
+    
+    const project = projects.find((p: api.Project) => (p.project_code || p.id) === projectCode);
+    if (project) {
+      return {
+        projectName: project.project_name || projectCode,
           isRealProject: true
         };
       }
-    } catch (error) {
-      console.error("Error reading project data:", error);
-    }
+    
     return {
-      projectName: projectCode === "Other Campaigns" ? "Other Campaigns" : projectCode,
+      projectName: projectCode,
       isRealProject: false
     };
   };
+
+  // Load projects from API
+  useEffect(() => {
+    const loadProjects = async () => {
+      try {
+        const apiProjects = await api.getProjects();
+        setProjects(apiProjects);
+      } catch (error) {
+        console.error("Error loading projects from API:", error);
+        setProjects([]);
+      }
+    };
+    loadProjects();
+    
+    // Listen for project updates
+    const handleProjectSaved = () => {
+      loadProjects();
+    };
+    
+    window.addEventListener("projectSaved", handleProjectSaved);
+    return () => {
+      window.removeEventListener("projectSaved", handleProjectSaved);
+    };
+  }, []);
 
   // Group campaigns by project (including projects without campaigns)
   const groupCampaignsByProject = (): ProjectGroup[] => {
     const projectMap = new Map<string, Campaign[]>();
     
-    // First, load all saved projects from localStorage
-    const allProjects: Array<{ projectCode: string; projectName: string; createdAt: string; order?: number }> = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith('project_')) {
-        try {
-          const projectData = JSON.parse(localStorage.getItem(key) || '{}');
-          if (projectData.projectCode && projectData.projectName) {
-            // Initialize order if not present
-            if (projectData.order === undefined) {
-              projectData.order = allProjects.length;
-              localStorage.setItem(key, JSON.stringify(projectData));
-            }
-            allProjects.push({
-              projectCode: projectData.projectCode,
-              projectName: projectData.projectName,
-              createdAt: projectData.createdAt || new Date().toISOString(),
-              order: projectData.order
-            });
-            // Initialize with empty campaign array
-            projectMap.set(projectData.projectCode, []);
-          }
-        } catch (error) {
-          console.error('Error parsing project data:', error);
-        }
+    // Initialize project map from API projects (already sorted by display_order from API)
+    projects.forEach((project: api.Project) => {
+      const projectCode = project.project_code || project.id;
+      if (projectCode) {
+        projectMap.set(projectCode, []);
       }
-    }
+    });
     
     // Separate campaigns with and without valid projects
     const campaignsWithoutProject: Campaign[] = [];
@@ -1506,7 +1392,7 @@ function HomeContent() {
 
     return Array.from(projectMap.entries()).map(([projectCode, projectCampaigns]) => {
       const { projectName, isRealProject } = getProjectInfo(projectCode);
-      const projectInfo = allProjects.find(p => p.projectCode === projectCode);
+      const projectInfo = projects.find((p: api.Project) => (p.project_code || p.id) === projectCode);
       // Helper to get estimated calls (handles both old and new format)
       const getEstCallsForCalc = (c: Campaign): number => {
         if (c.minCalls !== undefined && c.maxCalls !== undefined) {
@@ -1519,17 +1405,12 @@ function HomeContent() {
       // Assume $1000 per call as average cost
       const avgCostPerCall = 1000;
       const totalBudget = totalCalls * avgCostPerCall;
-      // Calculate spent based on progress of active campaigns
+      // Calculate project cost as sum of campaign consumption costs
+      // Campaign consumption cost = completedCalls * avgCostPerCall (same as campaign card calculation)
       const totalSpent = projectCampaigns.reduce((sum, c) => {
-        const status = getCampaignStatus(c);
-        const calls = getEstCallsForCalc(c);
-        if (status.isActive) {
-          const progress = calculateProgress(c) / 100;
-          return sum + (calls * avgCostPerCall * progress);
-        } else if (status.label === "Completed") {
-          return sum + (calls * avgCostPerCall);
-        }
-        return sum;
+        const targetCalls = getEstCallsForCalc(c);
+        const performedCalls = Math.max(0, Math.min(c.completedCalls ?? 0, targetCalls));
+        return sum + (performedCalls * avgCostPerCall);
       }, 0);
 
       // Sort campaigns by order field
@@ -1547,7 +1428,7 @@ function HomeContent() {
         totalBudget,
         totalSpent,
         isRealProject,
-        order: projectInfo?.order
+        order: projectInfo?.display_order || 0
       };
     }).sort((a, b) => {
       // Sort "Other Campaigns" to the end
@@ -1563,9 +1444,9 @@ function HomeContent() {
       }
       
       // Fallback to creation date if orders are equal
-      const aProject = allProjects.find(p => p.projectCode === a.projectCode);
-      const bProject = allProjects.find(p => p.projectCode === b.projectCode);
-      return new Date(bProject?.createdAt || 0).getTime() - new Date(aProject?.createdAt || 0).getTime();
+      const aProject = projects.find((p: api.Project) => (p.project_code || p.id) === a.projectCode);
+      const bProject = projects.find((p: api.Project) => (p.project_code || p.id) === b.projectCode);
+      return new Date(bProject?.created_at || 0).getTime() - new Date(aProject?.created_at || 0).getTime();
     });
   };
 

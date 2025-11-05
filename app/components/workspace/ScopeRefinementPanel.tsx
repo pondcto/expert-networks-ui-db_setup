@@ -7,10 +7,6 @@ import { DateRange, RangeKeyDict } from "react-date-range";
 import "react-date-range/dist/styles.css";
 import "react-date-range/dist/theme/default.css";
 
-interface ExtendedCampaignData extends CampaignData {
-  targetRegionsOther?: string;
-}
-
 export interface ScopeRefinementPanelProps {
   onSubmit?: (data: ScopeData) => void;
   onFormChange?: (isCompleted: boolean) => void;
@@ -24,7 +20,7 @@ export interface ScopeData {
   minCalls: number;
   maxCalls: number;
   // Optional details when "Other" is selected for regions
-  targetRegionsOther?: string;
+  customRegions?: string;
 }
 
 const targetRegions = [
@@ -55,7 +51,7 @@ export default function ScopeRefinementPanel({
     targetCompletionDate: "Any",
     minCalls: 5,
     maxCalls: 15,
-    targetRegionsOther: ""
+    customRegions: ""
   });
   const [showDatePicker, setShowDatePicker] = useState(false);
   const datePickerRef = useRef<HTMLDivElement>(null);
@@ -93,13 +89,16 @@ export default function ScopeRefinementPanel({
         maxCalls = estimate + 5;
       }
       
+      const targetRegions = campaignData.targetRegions || [];
+      const isOtherSelected = targetRegions.includes('Other');
       setFormData({
-        targetRegions: campaignData.targetRegions || [],
+        targetRegions: targetRegions,
         startDate: campaignData.startDate || "Any",
         targetCompletionDate: campaignData.targetCompletionDate || "Any",
         minCalls,
         maxCalls,
-        targetRegionsOther: (campaignData as ExtendedCampaignData).targetRegionsOther || ""
+        // Only include customRegions if "Other" is selected
+        customRegions: isOtherSelected ? (campaignData.customRegions || "") : ""
       });
       
       // Update date range if campaign has dates
@@ -162,9 +161,15 @@ export default function ScopeRefinementPanel({
       return;
     }
     
+    // If "Other" is deselected, clear customRegions
+    const wasOtherSelected = formData.targetRegions.includes('Other');
+    const isOtherSelected = newRegions.includes('Other');
+    const shouldClearCustomRegions = wasOtherSelected && !isOtherSelected;
+    
     const newData = {
       ...formData,
-      targetRegions: newRegions
+      targetRegions: newRegions,
+      customRegions: shouldClearCustomRegions ? "" : formData.customRegions
     };
     setFormData(newData);
     onDataChange?.(newData);
@@ -430,8 +435,8 @@ export default function ScopeRefinementPanel({
                   </label>
                   <input
                     type="text"
-                    value={formData.targetRegionsOther || ''}
-                    onChange={(e) => handleInputChange('targetRegionsOther', e.target.value)}
+                    value={formData.customRegions || ''}
+                    onChange={(e) => handleInputChange('customRegions', e.target.value)}
                     onFocus={handleFocus}
                     onBlur={handleBlur}
                     placeholder="e.g., Nordics (Sweden, Norway), GCC, Benelux, etc."

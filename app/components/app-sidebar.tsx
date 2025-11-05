@@ -54,48 +54,7 @@ interface ProjectWithCampaigns extends Project {
   campaigns: Campaign[];
 }
 
-// Helper function to get saved campaigns from localStorage
-const getSavedCampaigns = (): Campaign[] => {
-  if (typeof window === 'undefined') return [];
-  
-  const campaigns: Campaign[] = [];
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key && key.startsWith('campaign_')) {
-      try {
-        const campaignData = JSON.parse(localStorage.getItem(key) || '{}');
-        if (campaignData.id && campaignData.campaignName) {
-          campaigns.push(campaignData as Campaign);
-        }
-      } catch (error) {
-        console.error('Error parsing campaign data:', error);
-      }
-    }
-  }
-  console.log('Campaigns:', campaigns);
-  return campaigns.sort((a, b) => b.createdAt.localeCompare(a.createdAt)); // Sort by newest first
-};
-
-// Helper function to get saved projects from localStorage
-const getSavedProjects = (): Project[] => {
-  if (typeof window === 'undefined') return [];
-  
-  const projects: Project[] = [];
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key && key.startsWith('project_')) {
-      try {
-        const projectData = JSON.parse(localStorage.getItem(key) || '{}');
-        if (projectData.projectCode && projectData.projectName) {
-          projects.push(projectData as Project);
-        }
-      } catch (error) {
-        console.error('Error parsing project data:', error);
-      }
-    }
-  }
-  return projects.sort((a, b) => b.createdAt.localeCompare(a.createdAt)); // Sort by newest first
-};
+import * as api from "../lib/api-client";
 
 const menuItems = [
   {
@@ -143,24 +102,90 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const [savedProjects, setSavedProjects] = React.useState<Project[]>([]);
   const [isNewProjectModalOpen, setIsNewProjectModalOpen] = React.useState(false);
 
-  // Load saved campaigns and projects on component mount
+  // Load saved campaigns and projects from API
   React.useEffect(() => {
-    const campaigns = getSavedCampaigns();
-    const projects = getSavedProjects();
-    setSavedCampaigns(campaigns);
-    setSavedProjects(projects);
+    const loadData = async () => {
+      try {
+        // Load campaigns
+        const campaignsResponse = await api.getCampaigns();
+        const campaigns: Campaign[] = campaignsResponse.campaigns.map((c: api.Campaign) => ({
+          id: c.id,
+          campaignName: c.campaign_name,
+          projectCode: c.project_code || '',
+          industryVertical: c.industry_vertical,
+          startDate: c.start_date,
+          targetCompletionDate: c.target_completion_date,
+          estimatedCalls: c.min_calls && c.max_calls ? Math.round((c.min_calls + c.max_calls) / 2) : 0,
+          minCalls: c.min_calls || 0,
+          maxCalls: c.max_calls || 0,
+          teamMembers: [],
+          createdAt: c.created_at,
+          updatedAt: c.updated_at,
+          order: 0,
+        }));
+        setSavedCampaigns(campaigns);
+
+        // Load projects
+        const projectsData = await api.getProjects();
+        const projects: Project[] = projectsData.map((p: api.Project) => ({
+          projectCode: p.project_code || p.id,
+          projectName: p.project_name,
+          createdAt: p.created_at,
+          updatedAt: p.updated_at,
+        }));
+        setSavedProjects(projects);
+      } catch (error) {
+        console.error('Error loading campaigns/projects:', error);
+        // Set empty arrays on error so UI doesn't break
+        setSavedCampaigns([]);
+        setSavedProjects([]);
+      }
+    };
+
+    loadData();
   }, []); // Only load once on mount
 
   // Listen for campaign and project save events to refresh the list
   React.useEffect(() => {
-    const handleCampaignSaved = () => {
-      const campaigns = getSavedCampaigns();
-      setSavedCampaigns(campaigns);
+    const handleCampaignSaved = async () => {
+      try {
+        const campaignsResponse = await api.getCampaigns();
+        const campaigns: Campaign[] = campaignsResponse.campaigns.map((c: api.Campaign) => ({
+          id: c.id,
+          campaignName: c.campaign_name,
+          projectCode: c.project_code || '',
+          industryVertical: c.industry_vertical,
+          startDate: c.start_date,
+          targetCompletionDate: c.target_completion_date,
+          estimatedCalls: c.min_calls && c.max_calls ? Math.round((c.min_calls + c.max_calls) / 2) : 0,
+          minCalls: c.min_calls || 0,
+          maxCalls: c.max_calls || 0,
+          teamMembers: [],
+          createdAt: c.created_at,
+          updatedAt: c.updated_at,
+          order: 0,
+        }));
+        setSavedCampaigns(campaigns);
+      } catch (error) {
+        console.error('Error refreshing campaigns:', error);
+        // Silently fail - don't update state on error
+      }
     };
 
-    const handleProjectSaved = () => {
-      const projects = getSavedProjects();
-      setSavedProjects(projects);
+    const handleProjectSaved = async () => {
+      try {
+        const projectsData = await api.getProjects();
+        const projects: Project[] = projectsData.map((p: api.Project) => ({
+          projectCode: p.project_code || p.id,
+          projectName: p.project_name,
+          createdAt: p.created_at,
+          updatedAt: p.updated_at,
+        }));
+        setSavedProjects(projects);
+      } catch (error) {
+        console.error('Error refreshing projects:', error);
+        // Silently fail - don't update state on error
+      }
     };
 
     window.addEventListener('campaignSaved', handleCampaignSaved);
@@ -217,21 +242,32 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   };
 
   // Handle new project creation
-  const handleNewProject = (projectData: { projectName: string; projectCode: string }) => {
-    const project = {
-      ...projectData,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+  const handleNewProject = async (projectData: { projectName: string; projectCode: string }) => {
+    try {
+      await api.createProject({
+        project_name: projectData.projectName,
+        project_code: projectData.projectCode,
+      });
 
-    // Save to localStorage
-    localStorage.setItem(`project_${projectData.projectCode}`, JSON.stringify(project));
+      // Reload projects from API
+      const projectsData = await api.getProjects();
+      const projects: Project[] = projectsData.map((p: api.Project) => ({
+        projectCode: p.project_code || p.id,
+        projectName: p.project_name,
+        createdAt: p.created_at,
+        updatedAt: p.updated_at,
+      }));
+      setSavedProjects(projects);
 
-    // Dispatch event to update dashboard
-    window.dispatchEvent(new CustomEvent('projectSaved'));
-    
-    // Close modal
-    setIsNewProjectModalOpen(false);
+      // Dispatch event to update dashboard
+      window.dispatchEvent(new CustomEvent('projectSaved'));
+      
+      // Close modal
+      setIsNewProjectModalOpen(false);
+    } catch (error) {
+      console.error('Error creating project:', error);
+      alert('Failed to create project. Please try again.');
+    }
   };
 
   // Handle new project button click

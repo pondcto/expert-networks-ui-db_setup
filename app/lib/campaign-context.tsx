@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useCallback } from 'react';
+import * as api from './api-client';
 
 export interface CampaignData {
   id?: string;
@@ -11,6 +12,7 @@ export interface CampaignData {
   briefDescription: string;
   expandedDescription: string;
   targetRegions: string[];
+  customRegions?: string;
   startDate: string;
   targetCompletionDate: string;
   estimatedCalls?: number; // Keep for backward compatibility
@@ -58,48 +60,233 @@ export function CampaignProvider({ children }: { children: React.ReactNode }) {
       throw new Error('No campaign data to save');
     }
 
-    const now = new Date().toISOString();
-    const campaignId = mergedData.id || generateCampaignId();
-    const campaignToSave = {
-      ...mergedData,
-      id: campaignId,
-      createdAt: mergedData.createdAt || now,
-      updatedAt: now,
-    };
-
-    // In a real app, this would save to a database
-    // For now, we'll save to localStorage
-    console.log('Saving campaign data to localStorage:', campaignToSave);
-    localStorage.setItem(`campaign_${campaignId}`, JSON.stringify(campaignToSave));
-    
-    // Verify the data was saved correctly
-    const savedData = localStorage.getItem(`campaign_${campaignId}`);
-    console.log('Verified saved data:', savedData ? JSON.parse(savedData) : 'No data found');
-    
-    setCampaignData(campaignToSave);
-    setIsNewCampaign(false);
-    
-    // Dispatch custom event to notify sidebar of new campaign
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('campaignSaved', { 
-        detail: { campaignId, campaignName: campaignToSave.campaignName } 
-      }));
+    try {
+      let campaignId = mergedData.id;
+      
+      if (campaignId) {
+        // Update existing campaign
+        const updateData: api.CampaignUpdate = {
+          campaign_name: mergedData.campaignName,
+          industry_vertical: mergedData.industryVertical,
+          custom_industry: mergedData.customIndustry?.trim() || undefined,
+          brief_description: mergedData.briefDescription,
+          expanded_description: mergedData.expandedDescription,
+          start_date: mergedData.startDate !== 'Any' ? mergedData.startDate : undefined,
+          target_completion_date: mergedData.targetCompletionDate !== 'Any' ? mergedData.targetCompletionDate : undefined,
+          target_regions: mergedData.targetRegions,
+          custom_regions: mergedData.customRegions?.trim() || undefined,
+          min_calls: mergedData.minCalls,
+          max_calls: mergedData.maxCalls,
+        };
+        
+        const updatedCampaign = await api.updateCampaign(campaignId, updateData);
+        campaignId = updatedCampaign.id;
+        
+        // Update local state
+        const updatedData: CampaignData = {
+          ...mergedData,
+          id: updatedCampaign.id,
+          updatedAt: updatedCampaign.updated_at,
+        };
+        setCampaignData(updatedData);
+      } else {
+        // Create new campaign
+        // Convert projectCode to project_id (UUID) if provided
+        let projectId: string | undefined = undefined;
+        if (mergedData.projectCode && mergedData.projectCode.trim() !== '') {
+          try {
+            // Check if projectCode is already a UUID (valid UUID format)
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            if (uuidRegex.test(mergedData.projectCode)) {
+              // It's already a UUID, use it directly
+              projectId = mergedData.projectCode;
+            } else {
+              // It's a project code, look up the project to get its ID
+              const projects = await api.getProjects();
+              const project = projects.find((p: api.Project) => 
+                p.project_code === mergedData.projectCode || p.id === mergedData.projectCode
+              );
+              if (project) {
+                projectId = project.id;
+              } else {
+                // Project not found, but don't fail - just set to undefined
+                console.warn(`Project with code "${mergedData.projectCode}" not found. Creating campaign without project.`);
+              }
+            }
+          } catch (error) {
+            console.error('Error looking up project:', error);
+            // Continue without project_id if lookup fails
+          }
+        }
+        
+        const createData: api.CampaignCreate = {
+          project_id: projectId,
+          campaign_name: mergedData.campaignName,
+          industry_vertical: mergedData.industryVertical,
+          custom_industry: mergedData.customIndustry?.trim() || undefined,
+          brief_description: mergedData.briefDescription,
+          expanded_description: mergedData.expandedDescription,
+          start_date: mergedData.startDate !== 'Any' ? mergedData.startDate : new Date().toISOString().split('T')[0],
+          target_completion_date: mergedData.targetCompletionDate !== 'Any' ? mergedData.targetCompletionDate : new Date().toISOString().split('T')[0],
+          target_regions: mergedData.targetRegions,
+          custom_regions: mergedData.customRegions?.trim() || undefined,
+          min_calls: mergedData.minCalls,
+          max_calls: mergedData.maxCalls,
+        };
+        
+        const newCampaign = await api.createCampaign(createData);
+        campaignId = newCampaign.id;
+        
+        // Save screening questions if any were provided
+        if (mergedData.screeningQuestions && Array.isArray(mergedData.screeningQuestions) && mergedData.screeningQuestions.length > 0) {
+          try {
+            // Import screening questions API
+            const { getScreeningQuestions, createScreeningQuestion } = await import('./api-client');
+            
+            // Create root questions first
+            const questionIdMap = new Map<string, string>();
+            for (let i = 0; i < mergedData.screeningQuestions.length; i++) {
+              const q = mergedData.screeningQuestions[i] as any;
+              if (q.text) {
+                const created = await createScreeningQuestion(newCampaign.id, {
+                  campaign_id: newCampaign.id, // Required by backend model
+                  question_text: q.text,
+                  parent_question_id: null,
+                  display_order: i
+                });
+                questionIdMap.set(q.id || String(i), created.id);
+                
+                // Create sub-questions if any
+                if (q.subQuestions && Array.isArray(q.subQuestions)) {
+                  for (let j = 0; j < q.subQuestions.length; j++) {
+                    const sq = q.subQuestions[j];
+                    if (sq.text) {
+                      await createScreeningQuestion(newCampaign.id, {
+                        campaign_id: newCampaign.id, // Required by backend model
+                        question_text: sq.text,
+                        parent_question_id: created.id,
+                        display_order: j
+                      });
+                    }
+                  }
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Failed to save screening questions after campaign creation:', error);
+            // Don't fail the campaign creation if questions fail
+          }
+        }
+        
+        // Save team members if any were provided
+        if (mergedData.teamMembers && Array.isArray(mergedData.teamMembers) && mergedData.teamMembers.length > 0) {
+          try {
+            // Import team members API
+            const { assignTeamMemberToCampaign } = await import('./api-client');
+            
+            // Assign each team member to the campaign
+            for (const member of mergedData.teamMembers) {
+              const memberId = (member as any).id;
+              if (memberId) {
+                await assignTeamMemberToCampaign(newCampaign.id, memberId);
+              }
+            }
+          } catch (error) {
+            console.error('Failed to save team members after campaign creation:', error);
+            // Don't fail the campaign creation if team members fail
+          }
+        }
+        
+        // Update local state
+        const newData: CampaignData = {
+          ...mergedData,
+          id: newCampaign.id,
+          createdAt: newCampaign.created_at,
+          updatedAt: newCampaign.updated_at,
+        };
+        setCampaignData(newData);
+      }
+      
+      setIsNewCampaign(false);
+      
+      // Dispatch custom event to notify sidebar of campaign save
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('campaignSaved', { 
+          detail: { campaignId, campaignName: mergedData.campaignName } 
+        }));
+      }
+      
+      return campaignId;
+    } catch (error) {
+      console.error('Error saving campaign:', error);
+      throw error;
     }
-    
-    return campaignId;
   }, [campaignData]);
 
   // Memoize loadCampaign to prevent infinite loops in components that depend on it
   const loadCampaign = useCallback(async (campaignId: string): Promise<void> => {
     try {
-      // In a real app, this would load from a database
-      // For now, we'll load from localStorage
-      const savedData = localStorage.getItem(`campaign_${campaignId}`);
-      if (savedData) {
-        const parsedData = JSON.parse(savedData);
-        setCampaignData(parsedData);
-        setIsNewCampaign(false);
+      const campaign = await api.getCampaign(campaignId);
+      
+      // Load screening questions
+      let screeningQuestions: any[] = [];
+      try {
+        const { getScreeningQuestions } = await import('./api-client');
+        const backendQuestions = await getScreeningQuestions(campaignId);
+        // Convert backend format to frontend format
+        screeningQuestions = backendQuestions.map(q => ({
+          id: q.id,
+          text: q.question_text,
+          subQuestions: q.sub_questions ? q.sub_questions.map((sq: api.ScreeningQuestion) => ({
+            id: sq.id,
+            text: sq.question_text
+          })) : undefined
+        }));
+      } catch (error) {
+        console.error('Failed to load screening questions:', error);
       }
+      
+      // Load team members
+      let teamMembers: any[] = [];
+      try {
+        const { getCampaignTeamMembers } = await import('./api-client');
+        const backendMembers = await getCampaignTeamMembers(campaignId);
+        // Convert backend format to frontend format
+        teamMembers = backendMembers.map(m => ({
+          id: m.id,
+          name: m.name,
+          designation: m.designation,
+          avatar: m.avatar_url || `/images/team-members/${m.name}.png`
+        }));
+      } catch (error) {
+        console.error('Failed to load team members:', error);
+      }
+      
+      // Convert API campaign to CampaignData format
+      const campaignData: CampaignData = {
+        id: campaign.id,
+        campaignName: campaign.campaign_name,
+        projectCode: campaign.project_code || '',
+        industryVertical: campaign.industry_vertical,
+        customIndustry: campaign.custom_industry || undefined,
+        briefDescription: campaign.brief_description || '',
+        expandedDescription: campaign.expanded_description || '',
+        targetRegions: campaign.target_regions || [],
+        customRegions: campaign.custom_regions || undefined,
+        startDate: campaign.start_date,
+        targetCompletionDate: campaign.target_completion_date,
+        minCalls: campaign.min_calls || 0,
+        maxCalls: campaign.max_calls || 0,
+        estimatedCalls: campaign.min_calls && campaign.max_calls ? Math.round((campaign.min_calls + campaign.max_calls) / 2) : 0,
+        teamMembers: teamMembers,
+        screeningQuestions: screeningQuestions,
+        selectedVendors: [], // Can be loaded separately if needed
+        createdAt: campaign.created_at,
+        updatedAt: campaign.updated_at,
+      };
+      
+      setCampaignData(campaignData);
+      setIsNewCampaign(false);
     } catch (error) {
       console.error('Failed to load campaign:', error);
     }

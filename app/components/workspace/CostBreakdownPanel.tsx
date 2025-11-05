@@ -1,8 +1,8 @@
 "use client";
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useCampaign, CampaignData } from "../../lib/campaign-context";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { mockProposedExperts } from "../../data/mockData";
+import * as api from "../../lib/api-client";
 
 interface ExtendedCampaignData extends CampaignData {
     completedCalls?: number;
@@ -17,6 +17,42 @@ interface ExtendedCampaignData extends CampaignData {
 
 export default function CostBreakdownPanel() {
     const { campaignData } = useCampaign();
+    const [expertsCount, setExpertsCount] = useState(0);
+    const [completedCount, setCompletedCount] = useState(0);
+    const [scheduledCount, setScheduledCount] = useState(0);
+    const [loading, setLoading] = useState(true);
+
+    // Load experts and interview counts by status from API
+    useEffect(() => {
+        const loadCounts = async () => {
+            if (!campaignData?.id) {
+                setLoading(false);
+                return;
+            }
+
+            try {
+                // Load experts count
+                const expertsResponse = await api.getExperts({ campaign_id: campaignData.id });
+                setExpertsCount(expertsResponse.total);
+
+                // Load interview counts by status
+                const [completedResponse, scheduledResponse, cancelledResponse] = await Promise.all([
+                    api.getInterviews({ campaign_id: campaignData.id, status: 'completed' }),
+                    api.getInterviews({ campaign_id: campaignData.id, status: 'scheduled' }),
+                    api.getInterviews({ campaign_id: campaignData.id, status: 'cancelled' })
+                ]);
+
+                setCompletedCount(completedResponse.total || 0);
+                setScheduledCount(scheduledResponse.total || 0);
+            } catch (error) {
+                console.error('Error loading counts:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadCounts();
+    }, [campaignData?.id]);
     
     // Get estimated calls (target) - exactly matching dashboard logic
     const getEstimatedCalls = (c: ExtendedCampaignData | null): number => {
@@ -29,8 +65,10 @@ export default function CostBreakdownPanel() {
     
     const campaign = campaignData as ExtendedCampaignData | null;
     const targetCalls = getEstimatedCalls(campaign);
-    const performedCalls = Math.max(0, Math.min((campaign?.completedCalls ?? 0), targetCalls));
-    const scheduledCalls = Math.max(0, Math.min((campaign?.scheduledCalls ?? 0), Math.max(0, targetCalls - performedCalls)));
+    
+    // Use actual interview counts from database
+    const performedCalls = Math.max(0, Math.min(completedCount, targetCalls));
+    const scheduledCalls = Math.max(0, Math.min(scheduledCount, Math.max(0, targetCalls - performedCalls)));
     const remainderCalls = Math.max(0, targetCalls - performedCalls - scheduledCalls);
     
     // Calculate percentages
@@ -38,9 +76,9 @@ export default function CostBreakdownPanel() {
     const scheduledPct = targetCalls > 0 ? (scheduledCalls / targetCalls) * 100 : 0;
     const remainderPct = targetCalls > 0 ? (remainderCalls / targetCalls) * 100 : 0;
     
-    // Calculate anchored cost
+    // Calculate anchored cost using actual interview counts
     const avgCostPerCall = 1000;
-    const anchoredCost = (performedCalls + scheduledCalls) * avgCostPerCall;
+    const anchoredCost = (completedCount + scheduledCount) * avgCostPerCall;
 
     return (
         <div className="h-full w-full flex flex-col overflow-hidden">
@@ -55,7 +93,7 @@ export default function CostBreakdownPanel() {
                 <div className="grid grid-cols-3 gap-3 mb-4 shrink-0">
                     <div className="text-center">
                         <div className="text-2xl font-bold text-primary-600 dark:text-primary-500 mb-0.5">
-                            {performedCalls}
+                            {loading ? "..." : completedCount}
                         </div>
                         <div className="text-xs text-light-text-tertiary dark:text-dark-text-tertiary leading-tight">
                             Interviews completed
@@ -63,7 +101,7 @@ export default function CostBreakdownPanel() {
                     </div>
                     <div className="text-center">
                         <div className="text-2xl font-bold text-primary-300 dark:text-primary-300 mb-0.5">
-                            {scheduledCalls}
+                            {loading ? "..." : scheduledCount}
                         </div>
                         <div className="text-xs text-light-text-tertiary dark:text-dark-text-tertiary leading-tight">
                             Interviews scheduled
@@ -71,7 +109,7 @@ export default function CostBreakdownPanel() {
                     </div>
                     <div className="text-center">
                         <div className="text-2xl font-bold text-light-text dark:text-dark-text mb-0.5">
-                            ${(anchoredCost / 1000).toFixed(0)}k
+                            ${anchoredCost.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                         </div>
                         <div className="text-xs text-light-text-tertiary dark:text-dark-text-tertiary leading-tight">
                             Anchored cost
@@ -82,10 +120,8 @@ export default function CostBreakdownPanel() {
                 {/* Expert Types - Domain Experts, Customers, Competitors, Other - More compact */}
                 <div className="mb-4 shrink-0">
                     {(() => {
-                        // Use actual expert count from mock data or campaign data
-                        const proposedExpertsCount = Array.isArray(campaign?.proposedExperts) && campaign.proposedExperts.length > 0
-                            ? campaign.proposedExperts.length 
-                            : mockProposedExperts.length;
+                        // Use actual expert count from API
+                        const proposedExpertsCount = expertsCount;
                         
                         // Categorize experts - distribute across types
                         // In a real implementation, each expert would have an expertType field

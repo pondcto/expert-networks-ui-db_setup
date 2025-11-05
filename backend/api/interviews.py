@@ -67,18 +67,36 @@ async def list_interviews(
             params.append(status)
 
         # Query interviews with expert and vendor details
+        # Map database columns (name, title, company) to model fields (expert_name, current_title, current_company)
+        # Note: Combine scheduled_date and scheduled_time into scheduled_date datetime
+        # Add user_id from campaign, and handle missing fields from API model
         interviews = await execute_query(
             f"""
             SELECT
-                i.*,
-                e.expert_name,
-                e.current_company as expert_company,
-                e.current_title as expert_title,
+                i.id,
+                i.campaign_id,
+                i.expert_id,
+                c.user_id,
+                (i.scheduled_date + i.scheduled_time)::timestamp as scheduled_date,
+                i.duration_minutes,
+                i.status,
+                NULL as interview_notes,
+                NULL as key_insights,
+                NULL as recording_url,
+                NULL as transcript_text,
+                NULL as interviewer_name,
+                i.created_at,
+                i.updated_at,
+                e.name as expert_name,
+                e.company as expert_company,
+                e.title as expert_title,
+                e.avatar_url as expert_avatar_url,
                 e.vendor_platform_id,
                 v.name as vendor_name
             FROM expert_network.interviews i
             JOIN expert_network.experts e ON i.expert_id = e.id
             JOIN expert_network.vendor_platforms v ON e.vendor_platform_id = v.id
+            JOIN expert_network.campaigns c ON i.campaign_id = c.id
             WHERE {where_clause}
             ORDER BY i.scheduled_date DESC
             """,
@@ -117,13 +135,30 @@ async def get_interview(interview_id: str, user: User = Depends(get_current_user
     """
     try:
         # Query interview with campaign ownership check
+        # Map database columns (name, title, company) to model fields (expert_name, current_title, current_company)
+        # Note: Combine scheduled_date and scheduled_time into scheduled_date datetime
+        # Add user_id from campaign, and handle missing fields from API model
         interview = await execute_query(
             """
             SELECT
-                i.*,
-                e.expert_name,
-                e.current_company as expert_company,
-                e.current_title as expert_title,
+                i.id,
+                i.campaign_id,
+                i.expert_id,
+                c.user_id,
+                (i.scheduled_date + i.scheduled_time)::timestamp as scheduled_date,
+                i.duration_minutes,
+                i.status,
+                NULL as interview_notes,
+                NULL as key_insights,
+                NULL as recording_url,
+                NULL as transcript_text,
+                NULL as interviewer_name,
+                i.created_at,
+                i.updated_at,
+                e.name as expert_name,
+                e.company as expert_company,
+                e.title as expert_title,
+                e.avatar_url as expert_avatar_url,
                 e.vendor_platform_id,
                 v.name as vendor_name
             FROM expert_network.interviews i
@@ -186,7 +221,7 @@ async def create_interview(
         # Verify expert exists and belongs to campaign
         expert = await execute_query(
             """
-            SELECT e.id, e.expert_name, e.current_company, e.current_title, e.vendor_platform_id, v.name as vendor_name
+            SELECT e.id, e.name as expert_name, e.company as current_company, e.title as current_title, e.vendor_platform_id, v.name as vendor_name
             FROM expert_network.experts e
             JOIN expert_network.vendor_platforms v ON e.vendor_platform_id = v.id
             WHERE e.id = $1 AND e.campaign_id = $2

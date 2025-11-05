@@ -45,6 +45,7 @@ class ProjectUpdate(BaseModel):
     start_date: Optional[date] = None
     end_date: Optional[date] = None
     description: Optional[str] = None
+    display_order: Optional[int] = Field(None, ge=0, description="Display order in UI")
 
 
 class ProjectResponse(UUIDIdentifier, ProjectBase, TimestampMixin):

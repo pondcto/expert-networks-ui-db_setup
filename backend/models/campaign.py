@@ -15,10 +15,12 @@ class CampaignBase(BaseModel):
     """Base campaign fields shared between create/update."""
     campaign_name: str = Field(..., min_length=1, max_length=255, description="Campaign name")
     industry_vertical: str = Field(..., description="Industry focus (e.g., 'Healthcare Technology')")
+    custom_industry: Optional[str] = Field(None, description="Custom industry specification when 'Other' is selected")
     brief_description: Optional[str] = Field(None, description="Brief campaign description")
     start_date: date = Field(..., description="Campaign start date")
     target_completion_date: date = Field(..., description="Target completion date")
     target_regions: List[str] = Field(default_factory=list, description="Target geographic regions")
+    custom_regions: Optional[str] = Field(None, description="Custom region specification when 'Other' is selected")
     min_calls: Optional[int] = Field(None, ge=0, description="Minimum number of expert calls")
     max_calls: Optional[int] = Field(None, ge=0, description="Maximum number of expert calls")
 
@@ -48,10 +50,12 @@ class CampaignUpdate(BaseModel):
     project_id: Optional[str] = None
     campaign_name: Optional[str] = Field(None, min_length=1, max_length=255)
     industry_vertical: Optional[str] = None
+    custom_industry: Optional[str] = None
     brief_description: Optional[str] = None
     start_date: Optional[date] = None
     target_completion_date: Optional[date] = None
     target_regions: Optional[List[str]] = None
+    custom_regions: Optional[str] = None
     min_calls: Optional[int] = Field(None, ge=0)
     max_calls: Optional[int] = Field(None, ge=0)
 

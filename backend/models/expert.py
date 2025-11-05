@@ -21,7 +21,10 @@ class ExpertBase(BaseModel):
     years_experience: Optional[int] = Field(None, ge=0, le=100, description="Years of relevant experience")
     expertise_areas: List[str] = Field(default_factory=list, description="Areas of expertise/keywords")
     bio: Optional[str] = Field(None, description="Expert biography/summary")
+    work_history: Optional[str] = Field(None, description="Expert work history/background")
+    avatar_url: Optional[str] = Field(None, description="Expert avatar image URL")
     hourly_rate: Optional[int] = Field(None, ge=0, description="Hourly rate in USD")
+    rating: Optional[float] = Field(None, ge=0, le=5, description="Expert rating (0-5)")
 
 
 class ExpertCreate(ExpertBase):
@@ -64,6 +67,7 @@ class ExpertUpdate(BaseModel):
     years_experience: Optional[int] = Field(None, ge=0, le=100)
     expertise_areas: Optional[List[str]] = None
     bio: Optional[str] = None
+    work_history: Optional[str] = Field(None, description="Expert work history/background")
     hourly_rate: Optional[int] = Field(None, ge=0)
     status: Optional[str] = Field(None, description="Update expert status")
     internal_notes: Optional[str] = Field(None, description="Internal notes (visible only to user)")

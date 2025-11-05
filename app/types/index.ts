@@ -1,4 +1,5 @@
 // Shared types and interfaces for the application
+export * from './utils';
 
 export interface Expert {
   id: string;
@@ -27,7 +28,7 @@ export interface Interview {
   expertName: string;
   time: string;
   date: Date;
-  status: "confirmed" | "pending" | "cancelled";
+  status: "confirmed" | "pending" | "cancelled" | "completed";
   duration: number; // in minutes (30, 60, or 120)
   endTime?: string; // calculated end time
   colorTag?: string; // color identifier for the expert (e.g., "blue", "green", "purple")

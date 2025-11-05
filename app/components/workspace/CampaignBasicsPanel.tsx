@@ -48,31 +48,65 @@ export default function CampaignBasicsPanel({
     expandedDescription: ""
   });
   const [isEditing, setIsEditing] = useState(false);
+  const [lastCampaignId, setLastCampaignId] = useState<string | undefined>(undefined);
   const [showHints, setShowHints] = useState({
     campaignName: false,
     industryVertical: false,
     briefDescription: false
   });
 
-  // Load campaign data when it becomes available (but not while user is editing)
+  // Track campaign ID changes and reset editing state when switching campaigns
   useEffect(() => {
-    if (campaignData && !isEditing) {
+    const currentCampaignId = campaignData?.id;
+    if (currentCampaignId !== lastCampaignId) {
+      setIsEditing(false);
+      setLastCampaignId(currentCampaignId);
+    }
+  }, [campaignData?.id, lastCampaignId]);
+
+  // Load campaign data when campaign ID changes or when data becomes available
+  useEffect(() => {
+    // When campaign ID changes, always reload (ignore editing state)
+    const currentCampaignId = campaignData?.id;
+    const campaignChanged = currentCampaignId !== lastCampaignId;
+    
+    if (campaignData && (campaignChanged || !isEditing)) {
+      const industryVertical = campaignData.industryVertical || "Any";
+      // Always reset customIndustry when loading campaign data - only set it if "Other" is selected
+      const customIndustry = industryVertical === "Other" ? (campaignData.customIndustry || "") : "";
+      
       setFormData({
         campaignName: campaignData.campaignName || "",
         projectCode: campaignData.projectCode || "",
-        industryVertical: campaignData.industryVertical || "Any",
-        customIndustry: campaignData.customIndustry || "",
+        industryVertical: industryVertical,
+        customIndustry: customIndustry,
         briefDescription: campaignData.briefDescription || "",
         expandedDescription: campaignData.expandedDescription || ""
       });
+    } else if (!campaignData && !isEditing) {
+      // Reset form when campaignData becomes null (e.g., switching campaigns)
+      setFormData({
+        campaignName: "",
+        projectCode: "",
+        industryVertical: "Any",
+        customIndustry: "",
+        briefDescription: "",
+        expandedDescription: ""
+      });
     }
-  }, [campaignData, isEditing]);
+  }, [campaignData, campaignData?.id, isEditing, lastCampaignId]);
 
   const handleInputChange = (field: keyof CampaignData, value: string) => {
     const newData = {
       ...formData,
       [field]: value
     };
+    
+    // If industryVertical changes and it's not "Other", clear customIndustry
+    if (field === 'industryVertical' && value !== 'Other') {
+      newData.customIndustry = "";
+    }
+    
     console.log('CampaignBasics data change:', newData);
     setFormData(newData);
     onDataChange?.(newData);
