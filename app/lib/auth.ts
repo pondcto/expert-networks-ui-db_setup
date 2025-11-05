@@ -39,3 +39,26 @@ export const auth = betterAuth({
 });
 
 export type Session = typeof auth.$Infer.Session;
+
+/**
+ * Get authentication headers for API requests
+ * Uses JWT token from localStorage if available, otherwise returns empty headers
+ */
+export function authHeaders(): Record<string, string> {
+  if (typeof window === 'undefined') {
+    return {};
+  }
+  
+  try {
+    const token = localStorage.getItem('jwt');
+    if (token) {
+      return {
+        'Authorization': `Bearer ${token}`,
+      };
+    }
+  } catch {
+    // localStorage not available
+  }
+  
+  return {};
+}
