@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense, useEffect, useState, useRef } from "react";
+import React, { Suspense, useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { AppSidebar } from "./components/app-sidebar";
 import { SidebarInset } from "./components/ui/sidebar";
@@ -306,7 +306,7 @@ function DraggableCampaignCardRow({
     totalSpent = totalBudget;
   }
   
-  const costPercentage = totalBudget > 0 ? Math.min(Math.round((totalSpent / totalBudget) * 100), 100) : 0;
+  const _costPercentage = totalBudget > 0 ? Math.min(Math.round((totalSpent / totalBudget) * 100), 100) : 0;
 
   // Format currency
   const formatCurrency = (amount: number) => {
@@ -559,7 +559,7 @@ function DraggableCampaignCardRow({
 // Project Card Component with Toggle (Now Sortable)
 function ProjectCard({
   project,
-  costPercentage,
+  costPercentage: _costPercentage,
   campaignIds,
   onDeleteProject,
   onDeleteCampaign,
@@ -947,14 +947,131 @@ function HomeContent() {
     };
   }, []);
 
+  // Get project info from API projects
+  const getProjectInfo = (projectCode: string): { projectName: string; isRealProject: boolean } => {
+    if (projectCode === "Other Campaigns") {
+        return {
+        projectName: "Other Campaigns",
+        isRealProject: false
+      };
+    }
+    
+    const project = projects.find((p: api.Project) => (p.project_code || p.id) === projectCode);
+    if (project) {
+      return {
+        projectName: project.project_name || projectCode,
+          isRealProject: true
+        };
+      }
+    
+    return {
+      projectName: projectCode,
+      isRealProject: false
+    };
+  };
+
+  // Group campaigns by project (including projects without campaigns)
+  const groupCampaignsByProject = useCallback((): ProjectGroup[] => {
+    const projectMap = new Map<string, Campaign[]>();
+    
+    // Initialize project map from API projects (already sorted by display_order from API)
+    projects.forEach((project: api.Project) => {
+      const projectCode = project.project_code || project.id;
+      if (projectCode) {
+        projectMap.set(projectCode, []);
+      }
+    });
+    
+    // Separate campaigns with and without valid projects
+    const campaignsWithoutProject: Campaign[] = [];
+
+    campaigns.forEach(campaign => {
+      const projectCode = campaign.projectCode || '';
+      if (projectCode) {
+        // Check if project exists
+        if (projectMap.has(projectCode)) {
+          projectMap.get(projectCode)!.push(campaign);
+        } else {
+          campaignsWithoutProject.push(campaign);
+        }
+      } else {
+        campaignsWithoutProject.push(campaign);
+      }
+    });
+
+    // Add "Other Campaigns" group if there are campaigns without projects
+    if (campaignsWithoutProject.length > 0) {
+      projectMap.set("Other Campaigns", campaignsWithoutProject);
+    }
+
+    return Array.from(projectMap.entries()).map(([projectCode, projectCampaigns]) => {
+      const { projectName, isRealProject } = getProjectInfo(projectCode);
+      const projectInfo = projects.find((p: api.Project) => (p.project_code || p.id) === projectCode);
+      // Helper to get estimated calls (handles both old and new format)
+      const getEstCallsForCalc = (c: Campaign): number => {
+        if (c.minCalls !== undefined && c.maxCalls !== undefined) {
+          return Math.round((c.minCalls + c.maxCalls) / 2);
+        }
+        return c.estimatedCalls || 0;
+      };
+      
+      const totalCalls = projectCampaigns.reduce((sum, c) => sum + getEstCallsForCalc(c), 0);
+      // Assume $1000 per call as average cost
+      const avgCostPerCall = 1000;
+      const totalBudget = totalCalls * avgCostPerCall;
+      // Calculate project cost as sum of campaign consumption costs
+      // Campaign consumption cost = completedCalls * avgCostPerCall (same as campaign card calculation)
+      const totalSpent = projectCampaigns.reduce((sum, c) => {
+        const targetCalls = getEstCallsForCalc(c);
+        const performedCalls = Math.max(0, Math.min(c.completedCalls ?? 0, targetCalls));
+        return sum + (performedCalls * avgCostPerCall);
+      }, 0);
+
+      // Sort campaigns by order field
+      const sortedCampaigns = projectCampaigns.sort((a, b) => {
+        const orderA = a.order !== undefined ? a.order : 999999;
+        const orderB = b.order !== undefined ? b.order : 999999;
+        return orderA - orderB;
+      });
+
+      return {
+        projectCode,
+        projectName,
+        campaigns: sortedCampaigns,
+        totalCalls,
+        totalBudget,
+        totalSpent,
+        isRealProject,
+        order: projectInfo?.display_order || 0
+      };
+    }).sort((a, b) => {
+      // Sort "Other Campaigns" to the end
+      if (a.projectCode === "Other Campaigns") return 1;
+      if (b.projectCode === "Other Campaigns") return -1;
+      
+      // Sort by order field if available, otherwise by creation date
+      const orderA = a.order !== undefined ? a.order : 999999;
+      const orderB = b.order !== undefined ? b.order : 999999;
+      
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+      
+      // Fallback to creation date if orders are equal
+      const aProject = projects.find((p: api.Project) => (p.project_code || p.id) === a.projectCode);
+      const bProject = projects.find((p: api.Project) => (p.project_code || p.id) === b.projectCode);
+      return new Date(bProject?.created_at || 0).getTime() - new Date(aProject?.created_at || 0).getTime();
+    });
+  }, [campaigns, projects]);
+
   // Update grouped projects and initialize widths when campaigns or projects change
   useEffect(() => {
     const grouped = groupCampaignsByProject();
     setGroupedProjects(grouped);
-  }, [campaigns, projects]);
+  }, [groupCampaignsByProject]);
 
   // Calculate campaign status based on dates
-  const getCampaignStatus = (campaign: Campaign) => {
+  const _getCampaignStatus = (campaign: Campaign) => {
     const now = new Date();
     const start = new Date(campaign.startDate);
     const end = new Date(campaign.targetCompletionDate);
@@ -969,7 +1086,7 @@ function HomeContent() {
   };
 
   // Calculate progress percentage for active campaigns
-  const calculateProgress = (campaign: Campaign): number => {
+  const _calculateProgress = (campaign: Campaign): number => {
     const now = new Date();
     const start = new Date(campaign.startDate);
     const end = new Date(campaign.targetCompletionDate);
@@ -1309,29 +1426,6 @@ function HomeContent() {
     }
   };
 
-  // Get project info from API projects
-  const getProjectInfo = (projectCode: string): { projectName: string; isRealProject: boolean } => {
-    if (projectCode === "Other Campaigns") {
-        return {
-        projectName: "Other Campaigns",
-        isRealProject: false
-      };
-    }
-    
-    const project = projects.find((p: api.Project) => (p.project_code || p.id) === projectCode);
-    if (project) {
-      return {
-        projectName: project.project_name || projectCode,
-          isRealProject: true
-        };
-      }
-    
-    return {
-      projectName: projectCode,
-      isRealProject: false
-    };
-  };
-
   // Load projects from API
   useEffect(() => {
     const loadProjects = async () => {
@@ -1355,100 +1449,6 @@ function HomeContent() {
       window.removeEventListener("projectSaved", handleProjectSaved);
     };
   }, []);
-
-  // Group campaigns by project (including projects without campaigns)
-  const groupCampaignsByProject = (): ProjectGroup[] => {
-    const projectMap = new Map<string, Campaign[]>();
-    
-    // Initialize project map from API projects (already sorted by display_order from API)
-    projects.forEach((project: api.Project) => {
-      const projectCode = project.project_code || project.id;
-      if (projectCode) {
-        projectMap.set(projectCode, []);
-      }
-    });
-    
-    // Separate campaigns with and without valid projects
-    const campaignsWithoutProject: Campaign[] = [];
-
-    campaigns.forEach(campaign => {
-      const projectCode = campaign.projectCode || '';
-      if (projectCode) {
-        // Check if project exists
-        if (projectMap.has(projectCode)) {
-          projectMap.get(projectCode)!.push(campaign);
-        } else {
-          campaignsWithoutProject.push(campaign);
-        }
-      } else {
-        campaignsWithoutProject.push(campaign);
-      }
-    });
-
-    // Add "Other Campaigns" group if there are campaigns without projects
-    if (campaignsWithoutProject.length > 0) {
-      projectMap.set("Other Campaigns", campaignsWithoutProject);
-    }
-
-    return Array.from(projectMap.entries()).map(([projectCode, projectCampaigns]) => {
-      const { projectName, isRealProject } = getProjectInfo(projectCode);
-      const projectInfo = projects.find((p: api.Project) => (p.project_code || p.id) === projectCode);
-      // Helper to get estimated calls (handles both old and new format)
-      const getEstCallsForCalc = (c: Campaign): number => {
-        if (c.minCalls !== undefined && c.maxCalls !== undefined) {
-          return Math.round((c.minCalls + c.maxCalls) / 2);
-        }
-        return c.estimatedCalls || 0;
-      };
-      
-      const totalCalls = projectCampaigns.reduce((sum, c) => sum + getEstCallsForCalc(c), 0);
-      // Assume $1000 per call as average cost
-      const avgCostPerCall = 1000;
-      const totalBudget = totalCalls * avgCostPerCall;
-      // Calculate project cost as sum of campaign consumption costs
-      // Campaign consumption cost = completedCalls * avgCostPerCall (same as campaign card calculation)
-      const totalSpent = projectCampaigns.reduce((sum, c) => {
-        const targetCalls = getEstCallsForCalc(c);
-        const performedCalls = Math.max(0, Math.min(c.completedCalls ?? 0, targetCalls));
-        return sum + (performedCalls * avgCostPerCall);
-      }, 0);
-
-      // Sort campaigns by order field
-      const sortedCampaigns = projectCampaigns.sort((a, b) => {
-        const orderA = a.order !== undefined ? a.order : 999999;
-        const orderB = b.order !== undefined ? b.order : 999999;
-        return orderA - orderB;
-      });
-
-      return {
-        projectCode,
-        projectName,
-        campaigns: sortedCampaigns,
-        totalCalls,
-        totalBudget,
-        totalSpent,
-        isRealProject,
-        order: projectInfo?.display_order || 0
-      };
-    }).sort((a, b) => {
-      // Sort "Other Campaigns" to the end
-      if (a.projectCode === "Other Campaigns") return 1;
-      if (b.projectCode === "Other Campaigns") return -1;
-      
-      // Sort by order field if available, otherwise by creation date
-      const orderA = a.order !== undefined ? a.order : 999999;
-      const orderB = b.order !== undefined ? b.order : 999999;
-      
-      if (orderA !== orderB) {
-        return orderA - orderB;
-      }
-      
-      // Fallback to creation date if orders are equal
-      const aProject = projects.find((p: api.Project) => (p.project_code || p.id) === a.projectCode);
-      const bProject = projects.find((p: api.Project) => (p.project_code || p.id) === b.projectCode);
-      return new Date(bProject?.created_at || 0).getTime() - new Date(aProject?.created_at || 0).getTime();
-    });
-  };
 
 
   // Format currency

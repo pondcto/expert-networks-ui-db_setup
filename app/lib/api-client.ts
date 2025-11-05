@@ -69,7 +69,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
           } else {
             errorMessage = `${statusText}: ${url}`;
           }
-        } catch (parseError) {
+        } catch (_parseError) {
           // Not JSON, use text as-is (limit length)
           if (responseText.trim()) {
             errorMessage = responseText.trim().substring(0, 200);

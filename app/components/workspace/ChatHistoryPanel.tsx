@@ -6,7 +6,6 @@ import { LoadingSpinner } from "../ui/loading-spinner";
 import { ErrorMessage } from "../ui/error-message";
 import { EmptyState } from "../ui/empty-state";
 import { MessageCircle } from "lucide-react";
-import * as api from "../../lib/api-client";
 
 export interface ChatMessage {
   id: string;

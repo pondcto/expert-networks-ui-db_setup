@@ -63,7 +63,7 @@ export default function SchedulingPipelinePanel() {
     }, [campaignData?.id]);
 
     // Get scheduling status based on whether interview is scheduled
-    const getSchedulingStatus = (expertId: string): "Scheduled" | "Pending" => {
+    const getSchedulingStatus = (_expertId: string): "Scheduled" | "Pending" => {
         // This can be enhanced to check actual interview status from API
         return "Pending";
     };
@@ -123,7 +123,7 @@ export default function SchedulingPipelinePanel() {
                     </div>
                 ) : (
                 <div className="space-y-1">
-                    {experts.slice(0, 7).map((pe, index) => {
+                    {experts.slice(0, 7).map((pe) => {
                         const vendor = vendors.find(v => v.id === pe.vendor_id);
                         const schedulingStatus = getSchedulingStatus(pe.id);
                         

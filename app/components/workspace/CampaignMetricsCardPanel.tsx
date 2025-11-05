@@ -10,7 +10,7 @@ export default function CampaignMetricsCardPanel() {
   const [scheduling, setScheduling] = useState(0);
   const [scheduledCount, setScheduledCount] = useState(0);
   const [completedCount, setCompletedCount] = useState(0);
-  const [cancelledCount, setCancelledCount] = useState(0);
+  const [_cancelledCount, _setCancelledCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

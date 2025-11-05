@@ -91,7 +91,7 @@ export default function InterviewCalendarPanel() {
     enabled: !!campaignData?.id,
   });
 
-  const interviews = data?.interviews || [];
+  const interviews = useMemo(() => data?.interviews || [], [data?.interviews]);
 
   const weekStart = useMemo(() => startOfWeek(currentWeek, { weekStartsOn: 0 }), [currentWeek]);
   const weekDays = useMemo(() => generateWeekDays(currentWeek), [currentWeek]);
@@ -117,7 +117,7 @@ export default function InterviewCalendarPanel() {
     return COLOR_TAGS[color as ColorTag];
   }, []);
 
-  const getExpertColorDot = useCallback((color: string): string => {
+  const _getExpertColorDot = useCallback((color: string): string => {
     if (!(color in COLOR_DOTS)) {
       return COLOR_DOTS.gray;
     }

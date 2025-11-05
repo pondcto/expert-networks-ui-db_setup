@@ -55,7 +55,7 @@ export default function ProposedExpertsPanel({ onExpertSelect, selectedExpertId,
       return { experts: [], total: 0 };
     }
 
-    const vendorsData = vendors || await api.getVendors();
+    await api.getVendors(); // Ensure vendors are loaded if needed
     const expertsResponse = await api.getExperts({ campaign_id: campaignData.id });
     
     // Convert API experts to ProposedExpert format

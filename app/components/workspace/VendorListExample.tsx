@@ -8,7 +8,6 @@ import { EmptyState } from "../ui/empty-state";
 import { Building2 } from "lucide-react";
 import * as api from "../../lib/api-client";
 import { formatCurrencyRange } from "../../utils/formatting";
-import { VENDOR_STATUS } from "../../utils/constants";
 
 /**
  * Example component demonstrating vendor platform listing with API integration

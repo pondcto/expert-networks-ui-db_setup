@@ -33,7 +33,7 @@ export default function TeamMembersPanel({
   onInviteMore,
   onDataChange,
 }: TeamMembersPanelProps) {
-  const { campaignData, saveCampaign, isNewCampaign } = useCampaign();
+  const { campaignData, saveCampaign: _saveCampaign, isNewCampaign } = useCampaign();
   const [showModal, setShowModal] = useState(false);
   const [filterText, setFilterText] = useState("");
   const [currentMembers, setCurrentMembers] = useState<TeamMember[]>(members);
@@ -156,7 +156,7 @@ export default function TeamMembersPanel({
     };
     
     loadCampaignMembers();
-  }, [campaignData, currentCampaignId, isNewCampaign]);
+  }, [campaignData, currentCampaignId, isNewCampaign, currentMembers.length, onDataChange]);
 
   const filteredMembers = availableMembers.filter(member =>
     (member.name.toLowerCase().includes(filterText.toLowerCase()) ||

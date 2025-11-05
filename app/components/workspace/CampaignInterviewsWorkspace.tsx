@@ -128,7 +128,7 @@ export default function CampaignInterviewsWorkspace() {
   };
 
   // Check if we're in a campaign route
-  const isCampaignRoute = pathname?.includes('/campaign/') && !pathname?.includes('/new');
+  const _isCampaignRoute = pathname?.includes('/campaign/') && !pathname?.includes('/new');
 
   // Initialize campaign data for new campaigns (only if not already set by parent)
   useEffect(() => {
