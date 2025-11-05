@@ -36,14 +36,14 @@ export function formatDate(
   format: 'short' | 'medium' | 'long' | 'full' = 'medium'
 ): string {
   const dateObj = typeof date === 'string' ? new Date(date) : date;
-  const options: Intl.DateTimeFormatOptions = {
+  const formatOptions: Record<'short' | 'medium' | 'long' | 'full', Intl.DateTimeFormatOptions> = {
     short: { month: 'short', day: 'numeric', year: 'numeric' },
     medium: { month: 'short', day: 'numeric', year: 'numeric' },
     long: { month: 'long', day: 'numeric', year: 'numeric' },
     full: { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' },
   };
 
-  return new Intl.DateTimeFormat('en-US', options[format]).format(dateObj);
+  return new Intl.DateTimeFormat('en-US', formatOptions[format]).format(dateObj);
 }
 
 /**
