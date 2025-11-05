@@ -948,7 +948,7 @@ function HomeContent() {
   }, []);
 
   // Get project info from API projects
-  const getProjectInfo = (projectCode: string): { projectName: string; isRealProject: boolean } => {
+  const getProjectInfo = useCallback((projectCode: string): { projectName: string; isRealProject: boolean } => {
     if (projectCode === "Other Campaigns") {
         return {
         projectName: "Other Campaigns",
@@ -968,7 +968,7 @@ function HomeContent() {
       projectName: projectCode,
       isRealProject: false
     };
-  };
+  }, [projects]);
 
   // Group campaigns by project (including projects without campaigns)
   const groupCampaignsByProject = useCallback((): ProjectGroup[] => {
@@ -1062,7 +1062,7 @@ function HomeContent() {
       const bProject = projects.find((p: api.Project) => (p.project_code || p.id) === b.projectCode);
       return new Date(bProject?.created_at || 0).getTime() - new Date(aProject?.created_at || 0).getTime();
     });
-  }, [campaigns, projects]);
+  }, [campaigns, projects, getProjectInfo]);
 
   // Update grouped projects and initialize widths when campaigns or projects change
   useEffect(() => {

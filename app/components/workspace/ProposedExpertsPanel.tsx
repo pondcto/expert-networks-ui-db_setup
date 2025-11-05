@@ -88,7 +88,7 @@ export default function ProposedExpertsPanel({ onExpertSelect, selectedExpertId,
     }
 
     return { experts: proposedExperts, total: expertsResponse.total };
-  }, [campaignData?.id, vendors, onExpertSelect, selectedExpertId]);
+  }, [campaignData?.id, onExpertSelect, selectedExpertId]);
 
   const { data, loading, error, refetch } = useApi(loadExperts, {
     enabled: !!campaignData?.id && !!vendors,
