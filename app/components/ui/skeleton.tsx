@@ -1,7 +1,7 @@
 import React from 'react';
 import { cn } from '../../lib/utils';
 
-export interface SkeletonProps {
+export interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
   className?: string;
   variant?: 'text' | 'circular' | 'rectangular';
   width?: string | number;
@@ -15,6 +15,8 @@ export function Skeleton({
   width,
   height,
   animation = 'pulse',
+  style,
+  ...props
 }: SkeletonProps) {
   const baseClasses = cn(
     'bg-light-hover dark:bg-dark-hover',
@@ -26,12 +28,13 @@ export function Skeleton({
     className
   );
 
-  const style: React.CSSProperties = {
+  const combinedStyle: React.CSSProperties = {
     width: width || (variant === 'text' ? '100%' : undefined),
     height: height || (variant === 'text' ? '1em' : undefined),
+    ...style,
   };
 
-  return <div className={baseClasses} style={style} />;
+  return <div className={baseClasses} style={combinedStyle} {...props} />;
 }
 
 export function SkeletonText({ lines = 3, className }: { lines?: number; className?: string }) {
