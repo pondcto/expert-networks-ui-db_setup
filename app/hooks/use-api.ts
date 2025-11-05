@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useAsync, UseAsyncOptions } from './use-async';
 
 export interface UseApiOptions<T> extends UseAsyncOptions<T> {

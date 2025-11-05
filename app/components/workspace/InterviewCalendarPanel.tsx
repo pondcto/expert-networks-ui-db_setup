@@ -15,7 +15,7 @@ import {
   isBefore,
   getTimeSlotPosition
 } from "../../utils/dateUtils";
-import { COLOR_TAGS, type ColorTag } from "../../utils/constants";
+import { COLOR_TAGS, COLOR_DOTS, type ColorTag } from "../../utils/constants";
 import { formatTime } from "../../utils/formatting";
 import { Interview } from "../../types";
 import { useCampaign } from "../../lib/campaign-context";
@@ -92,9 +92,6 @@ export default function InterviewCalendarPanel() {
   });
 
   const interviews = data?.interviews || [];
-  
-  // Memoize interviews to avoid dependency issues in useCallback
-  const memoizedInterviews = useMemo(() => interviews, [interviews]);
 
   const weekStart = useMemo(() => startOfWeek(currentWeek, { weekStartsOn: 0 }), [currentWeek]);
   const weekDays = useMemo(() => generateWeekDays(currentWeek), [currentWeek]);
@@ -104,8 +101,8 @@ export default function InterviewCalendarPanel() {
   }, [currentWeek]);
 
   const getInterviewsForDay = useCallback((date: Date): Interview[] => {
-    return memoizedInterviews.filter(interview => isSameDay(interview.date, date));
-  }, [memoizedInterviews]);
+    return interviews.filter(interview => isSameDay(interview.date, date));
+  }, [interviews]);
 
   const isPastDay = useCallback((date: Date): boolean => {
     const today = startOfDay(new Date());
@@ -120,12 +117,12 @@ export default function InterviewCalendarPanel() {
     return COLOR_TAGS[color as ColorTag];
   }, []);
 
-  // const getExpertColorDot = useCallback((color: string): string => {
-  //   if (!(color in COLOR_DOTS)) {
-  //     return COLOR_DOTS.gray;
-  //   }
-  //   return COLOR_DOTS[color as ColorTag];
-  // }, []);
+  const getExpertColorDot = useCallback((color: string): string => {
+    if (!(color in COLOR_DOTS)) {
+      return COLOR_DOTS.gray;
+    }
+    return COLOR_DOTS[color as ColorTag];
+  }, []);
 
   // Loading state
   if (loading) {
@@ -251,12 +248,12 @@ export default function InterviewCalendarPanel() {
                 const isCurrentDay = isToday(day);
                 
                 // Check if this time slot is occupied by the single interview
-                // const _isOccupied = dayInterviews.some(interview => {
-                //   const startIndex = getTimeSlotPosition(interview.time);
-                //   const durationSlots = interview.duration / 60;
-                //   const occupiedSlots = Array.from({ length: durationSlots }, (_, i) => startIndex + i);
-                //   return occupiedSlots.includes(timeIndex);
-                // });
+                const _isOccupied = dayInterviews.some(interview => {
+                  const startIndex = getTimeSlotPosition(interview.time);
+                  const durationSlots = interview.duration / 60;
+                  const occupiedSlots = Array.from({ length: durationSlots }, (_, i) => startIndex + i);
+                  return occupiedSlots.includes(timeIndex);
+                });
                 
                 return (
                   <div

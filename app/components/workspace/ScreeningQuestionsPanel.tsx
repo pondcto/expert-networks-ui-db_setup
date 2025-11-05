@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { Plus, Edit2, Trash2, Circle, Dot } from "lucide-react";
 import { useCampaign } from "../../lib/campaign-context";
 import * as api from "../../lib/api-client";
@@ -14,12 +14,14 @@ export interface ScreeningQuestion {
 export interface ScreeningQuestionsPanelProps {
   questions?: ScreeningQuestion[];
   onAddQuestion?: (question: ScreeningQuestion) => void;
+  onImportQuestions?: () => void;
   onDataChange?: (data: ScreeningQuestion[]) => void;
 }
 
 export default function ScreeningQuestionsPanel({
   questions = [],
   onAddQuestion,
+  onImportQuestions,
   onDataChange,
 }: ScreeningQuestionsPanelProps) {
   const { campaignData, isNewCampaign } = useCampaign();
@@ -32,14 +34,14 @@ export default function ScreeningQuestionsPanel({
   const [newSubQuestionText, setNewSubQuestionText] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Convert backend format to frontend format (recursive, memoized to avoid dependency issues)
-  const convertBackendToFrontend = useCallback((backendQuestions: api.ScreeningQuestion[]): ScreeningQuestion[] => {
+  // Convert backend format to frontend format
+  const convertBackendToFrontend = (backendQuestions: api.ScreeningQuestion[]): ScreeningQuestion[] => {
     return backendQuestions.map(q => ({
       id: q.id,
       text: q.question_text,
       subQuestions: q.sub_questions ? convertBackendToFrontend(q.sub_questions) : undefined
     }));
-  }, []);
+  };
 
 
   // Reset to empty for new campaigns and sync with campaignData
@@ -74,7 +76,7 @@ export default function ScreeningQuestionsPanel({
     };
     
     loadQuestions();
-  }, [campaignData?.id, isNewCampaign, editingQuestionId, convertBackendToFrontend, onDataChange]);
+  }, [campaignData?.id, isNewCampaign, editingQuestionId]);
 
   // Save questions to database - simplified version that replaces all questions
   const saveQuestionsToDatabase = async (questionsToSave: ScreeningQuestion[]) => {
@@ -90,10 +92,9 @@ export default function ScreeningQuestionsPanel({
       let existingQuestions: api.ScreeningQuestion[] = [];
       try {
         existingQuestions = await api.getScreeningQuestions(campaignData.id);
-      } catch (error: unknown) {
+      } catch (error: any) {
         // If campaign doesn't have questions yet, that's fine - start with empty array
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        if (errorMessage?.includes('404') || errorMessage?.includes('not found')) {
+        if (error.message?.includes('404') || error.message?.includes('not found')) {
           existingQuestions = [];
         } else {
           throw error;
@@ -131,10 +132,9 @@ export default function ScreeningQuestionsPanel({
             display_order: i
           });
           questionIdMap.set(q.id, created.id);
-        } catch (error: unknown) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
+        } catch (error: any) {
           console.error(`Failed to create question "${q.text}":`, error);
-          throw new Error(`Failed to create question: ${errorMessage}`);
+          throw new Error(`Failed to create question: ${error.message || error}`);
         }
       }
       
@@ -160,10 +160,9 @@ export default function ScreeningQuestionsPanel({
                 parent_question_id: parentBackendId,
                 display_order: i
               });
-            } catch (error: unknown) {
-              const errorMessage = error instanceof Error ? error.message : String(error);
+            } catch (error: any) {
               console.error(`Failed to create sub-question "${sq.text}":`, error);
-              throw new Error(`Failed to create sub-question: ${errorMessage}`);
+              throw new Error(`Failed to create sub-question: ${error.message || error}`);
             }
           }
         }
@@ -174,7 +173,7 @@ export default function ScreeningQuestionsPanel({
       const frontendQuestions = convertBackendToFrontend(updatedQuestions);
       setCurrentQuestions(frontendQuestions);
       onDataChange?.(frontendQuestions);
-    } catch (error: unknown) {
+    } catch (error: any) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error('Failed to save screening questions:', errorMessage, error);
       // Show user-friendly error message

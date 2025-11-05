@@ -36,12 +36,11 @@ export default function CostBreakdownPanel() {
                 setExpertsCount(expertsResponse.total);
 
                 // Load interview counts by status
-                const [completedResponse, scheduledResponse] = await Promise.all([
+                const [completedResponse, scheduledResponse, cancelledResponse] = await Promise.all([
                     api.getInterviews({ campaign_id: campaignData.id, status: 'completed' }),
-                    api.getInterviews({ campaign_id: campaignData.id, status: 'scheduled' })
+                    api.getInterviews({ campaign_id: campaignData.id, status: 'scheduled' }),
+                    api.getInterviews({ campaign_id: campaignData.id, status: 'cancelled' })
                 ]);
-                // cancelledResponse is not currently used in the UI
-                // const cancelledResponse = await api.getInterviews({ campaign_id: campaignData.id, status: 'cancelled' });
 
                 setCompletedCount(completedResponse.total || 0);
                 setScheduledCount(scheduledResponse.total || 0);

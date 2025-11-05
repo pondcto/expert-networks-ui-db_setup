@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { useCampaign } from "../../lib/campaign-context";
+import { useCampaign, CampaignData } from "../../lib/campaign-context";
 import { Calendar, X } from "lucide-react";
 import { DateRange, RangeKeyDict } from "react-date-range";
 import "react-date-range/dist/styles.css";

@@ -33,12 +33,12 @@ export default function VendorSelectionPanel({
 }: VendorSelectionPanelProps) {
   const { isNewCampaign, campaignData } = useCampaign();
   const [vendors, setVendors] = useState<VendorPlatform[]>([]);
-  // enrolledVendors state kept for future use
-  // const [enrolledVendors, setEnrolledVendors] = useState<Set<string>>(new Set());
+  const [enrolledVendors, setEnrolledVendors] = useState<Set<string>>(new Set());
   const [showVendorDetailsModal, setShowVendorDetailsModal] = useState<boolean>(false);
   const [selectedVendor, setSelectedVendor] = useState<VendorPlatform | null>(null);
   const [showEnrollmentModal, setShowEnrollmentModal] = useState<boolean>(false);
   const [vendorToEnroll, setVendorToEnroll] = useState<VendorPlatform | null>(null);
+  const [pendingVendors, setPendingVendors] = useState<Set<string>>(new Set());
   const [sortColumn, setSortColumn] = useState<'rank' | 'overallScore' | 'avgCostPerCall' | 'status' | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [loading, setLoading] = useState(true);
@@ -50,7 +50,7 @@ export default function VendorSelectionPanel({
         const vendorsData = await api.getVendors();
         
         // Load enrolled vendors for this campaign if campaign exists
-        const enrollmentMap = new Map<string, string>(); // vendor_id -> status
+        let enrollmentMap = new Map<string, string>(); // vendor_id -> status
         if (campaignData?.id) {
           try {
             const enrollments = await api.getCampaignVendors(campaignData.id);
@@ -93,8 +93,7 @@ export default function VendorSelectionPanel({
         });
 
         setVendors(vendorPlatforms);
-        // enrolledVendors is set but not currently used in the UI
-        // setEnrolledVendors(new Set(enrollmentMap.keys()));
+        setEnrolledVendors(new Set(enrollmentMap.keys()));
       } catch (error) {
         console.error('Error loading vendors:', error);
         setVendors([]);
@@ -130,7 +129,7 @@ export default function VendorSelectionPanel({
           enrollmentMap.set(e.vendor_platform_id, e.status);
         });
         
-        // setEnrolledVendors(new Set(enrollmentMap.keys()));
+        setEnrolledVendors(new Set(enrollmentMap.keys()));
         setVendors(prev => prev.map(v => {
           if (v.id === vendorToEnroll.id) {
             const enrollmentStatus = enrollmentMap.get(v.id);

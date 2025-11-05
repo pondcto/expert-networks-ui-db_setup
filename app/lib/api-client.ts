@@ -10,21 +10,19 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const DEMO_USER_ID = 'demo-user-123';
 
 // Helper to safely extract string from error value
-function extractString(value: unknown): string | null {
+function extractString(value: any): string | null {
   if (value === null || value === undefined) return null;
   if (typeof value === 'string') return value;
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
   if (Array.isArray(value)) {
     return value.map(item => extractString(item) || String(item)).join(', ');
   }
-  if (typeof value === 'object' && value !== null) {
-    // Type guard: value is an object with potentially unknown properties
-    const obj = value as Record<string, unknown>;
+  if (typeof value === 'object') {
     // Try to extract common error fields
-    if (obj.detail) return extractString(obj.detail);
-    if (obj.message) return extractString(obj.message);
-    if (obj.error) return extractString(obj.error);
-    if (obj.msg) return extractString(obj.msg);
+    if (value.detail) return extractString(value.detail);
+    if (value.message) return extractString(value.message);
+    if (value.error) return extractString(value.error);
+    if (value.msg) return extractString(value.msg);
     // If all else fails, stringify
     try {
       return JSON.stringify(value);
@@ -40,7 +38,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     let errorMessage = `HTTP ${response.status}`;
     let responseText = '';
-    let errorData: unknown = null;
+    let errorData: any = null;
     
     // Safely try to get response properties
     const status = response.status;
@@ -58,12 +56,10 @@ async function handleResponse<T>(response: Response): Promise<T> {
           errorData = JSON.parse(responseText);
           
           // Try to extract error message from various fields
-          // Type guard: errorData is now an object with potentially unknown properties
-          const errorObj = errorData as Record<string, unknown>;
-          const extracted = extractString(errorObj.detail) || 
-                           extractString(errorObj.message) || 
-                           extractString(errorObj.error) || 
-                           extractString(errorObj.msg) ||
+          const extracted = extractString(errorData.detail) || 
+                           extractString(errorData.message) || 
+                           extractString(errorData.error) || 
+                           extractString(errorData.msg) ||
                            extractString(errorData);
           
           if (extracted && extracted.trim()) {
@@ -73,7 +69,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
           } else {
             errorMessage = `${statusText}: ${url}`;
           }
-        } catch {
+        } catch (parseError) {
           // Not JSON, use text as-is (limit length)
           if (responseText.trim()) {
             errorMessage = responseText.trim().substring(0, 200);
@@ -85,7 +81,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
         // Empty response body
         errorMessage = `${statusText}: ${url}`;
       }
-    } catch (e: unknown) {
+    } catch (e: any) {
       // If reading fails, use status
       console.warn('Failed to read error response:', e);
       errorMessage = `${statusText}: ${url}`;
@@ -144,11 +140,11 @@ async function handleResponse<T>(response: Response): Promise<T> {
     // Try to parse as JSON
     try {
       return JSON.parse(text) as T;
-    } catch {
+    } catch (parseError) {
       // If parsing fails, log warning and return empty object
       const contentType = response.headers.get('content-type');
       if (contentType && contentType.includes('application/json')) {
-        console.warn('Failed to parse JSON response. Response text:', text.substring(0, 100));
+        console.warn('Failed to parse JSON response:', parseError, 'Response text:', text.substring(0, 100));
       }
       return {} as T;
     }
@@ -160,7 +156,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 // Helper function to remove undefined values from an object (for cleaner JSON)
-function removeUndefined(obj: unknown): unknown {
+function removeUndefined(obj: any): any {
   if (obj === null || obj === undefined) {
     return obj;
   }
@@ -168,7 +164,7 @@ function removeUndefined(obj: unknown): unknown {
     return obj.map(removeUndefined);
   }
   if (typeof obj === 'object') {
-    const cleaned: Record<string, unknown> = {};
+    const cleaned: any = {};
     for (const [key, value] of Object.entries(obj)) {
       if (value !== undefined) {
         cleaned[key] = removeUndefined(value);
@@ -188,7 +184,7 @@ async function apiRequest<T>(
   
   try {
     // Clean the body if it exists (remove undefined values)
-    const cleanedOptions = { ...options };
+    let cleanedOptions = { ...options };
     if (options.body && typeof options.body === 'string') {
       try {
         const parsed = JSON.parse(options.body);
@@ -205,9 +201,9 @@ async function apiRequest<T>(
             }
           });
         }
-      } catch {
+      } catch (parseError) {
         // If parsing fails, use body as-is
-        console.warn('Failed to parse request body');
+        console.warn('Failed to parse request body:', parseError);
       }
     }
     
@@ -497,7 +493,7 @@ export interface ScreeningQuestion {
   parent_question_id: string | null;
   question_text: string;
   question_type: string;
-  options: Record<string, unknown> | null;
+  options: Record<string, any> | null;
   display_order: number;
   created_at: string;
   updated_at: string;
@@ -509,14 +505,14 @@ export interface ScreeningQuestionCreate {
   parent_question_id?: string | null;
   question_text: string;
   question_type?: string;
-  options?: Record<string, unknown> | null;
+  options?: Record<string, any> | null;
   display_order?: number;
 }
 
 export interface ScreeningQuestionUpdate {
   question_text?: string;
   question_type?: string;
-  options?: Record<string, unknown> | null;
+  options?: Record<string, any> | null;
   display_order?: number;
 }
 

@@ -306,8 +306,7 @@ function DraggableCampaignCardRow({
     totalSpent = totalBudget;
   }
   
-  // costPercentage is calculated but not currently used in this component
-  // const costPercentage = totalBudget > 0 ? Math.min(Math.round((totalSpent / totalBudget) * 100), 100) : 0;
+  const costPercentage = totalBudget > 0 ? Math.min(Math.round((totalSpent / totalBudget) * 100), 100) : 0;
 
   // Format currency
   const formatCurrency = (amount: number) => {
@@ -952,12 +951,35 @@ function HomeContent() {
   useEffect(() => {
     const grouped = groupCampaignsByProject();
     setGroupedProjects(grouped);
-    // groupCampaignsByProject is defined in the component and depends on campaigns/projects
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [campaigns, projects]);
 
-  // Note: getCampaignStatus and calculateProgress are defined earlier in the component (lines 250/265)
-  // These duplicate definitions are removed to avoid unused variable warnings
+  // Calculate campaign status based on dates
+  const getCampaignStatus = (campaign: Campaign) => {
+    const now = new Date();
+    const start = new Date(campaign.startDate);
+    const end = new Date(campaign.targetCompletionDate);
+
+    if (now < start) {
+      return { label: "Waiting for vendors", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300", isActive: false };
+    } else if (now >= start && now <= end) {
+      return { label: "Active", color: "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300", isActive: true };
+    } else {
+      return { label: "Completed", color: "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-300", isActive: false };
+    }
+  };
+
+  // Calculate progress percentage for active campaigns
+  const calculateProgress = (campaign: Campaign): number => {
+    const now = new Date();
+    const start = new Date(campaign.startDate);
+    const end = new Date(campaign.targetCompletionDate);
+    
+    const totalDuration = end.getTime() - start.getTime();
+    const elapsed = now.getTime() - start.getTime();
+    
+    const progress = (elapsed / totalDuration) * 100;
+    return Math.min(Math.max(progress, 0), 100); // Clamp between 0 and 100
+  };
 
   // Drag handlers
   const handleDragStart = (event: DragStartEvent) => {

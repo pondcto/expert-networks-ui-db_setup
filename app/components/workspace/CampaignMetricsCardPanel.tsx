@@ -10,6 +10,7 @@ export default function CampaignMetricsCardPanel() {
   const [scheduling, setScheduling] = useState(0);
   const [scheduledCount, setScheduledCount] = useState(0);
   const [completedCount, setCompletedCount] = useState(0);
+  const [cancelledCount, setCancelledCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -31,17 +32,15 @@ export default function CampaignMetricsCardPanel() {
         setScheduling(scheduling);
 
         // Load interview counts by status
-        const [scheduledResponse, completedResponse] = await Promise.all([
+        const [scheduledResponse, completedResponse, cancelledResponse] = await Promise.all([
           api.getInterviews({ campaign_id: campaignData.id, status: 'scheduled' }),
-          api.getInterviews({ campaign_id: campaignData.id, status: 'completed' })
+          api.getInterviews({ campaign_id: campaignData.id, status: 'completed' }),
+          api.getInterviews({ campaign_id: campaignData.id, status: 'cancelled' })
         ]);
-        // cancelledResponse is not currently displayed in the UI
-        // const cancelledResponse = await api.getInterviews({ campaign_id: campaignData.id, status: 'cancelled' });
 
         setScheduledCount(scheduledResponse.total || 0);
         setCompletedCount(completedResponse.total || 0);
-        // cancelledCount is not currently displayed in the UI
-        // const cancelledCount = cancelledResponse.total || 0;
+        setCancelledCount(cancelledResponse.total || 0);
       } catch (error) {
         console.error('Error loading campaign metrics:', error);
       } finally {

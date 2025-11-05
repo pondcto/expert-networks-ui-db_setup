@@ -42,12 +42,12 @@ export function CampaignProvider({ children }: { children: React.ReactNode }) {
   const [campaignData, setCampaignData] = useState<CampaignData | null>(null);
   const [isNewCampaign, setIsNewCampaign] = useState(true);
 
-  // Generate a 16-digit hexadecimal campaign ID (kept for future use)
-  // const generateCampaignId = (): string => {
-  //   return Array.from({ length: 16 }, () => 
-  //     Math.floor(Math.random() * 16).toString(16)
-  //   ).join('');
-  // };
+  // Generate a 16-digit hexadecimal campaign ID
+  const generateCampaignId = (): string => {
+    return Array.from({ length: 16 }, () => 
+      Math.floor(Math.random() * 16).toString(16)
+    ).join('');
+  };
 
   // Memoize saveCampaign to prevent infinite loops in components that depend on it
   const saveCampaign = useCallback(async (dataToSave?: Partial<CampaignData>): Promise<string> => {
@@ -141,12 +141,12 @@ export function CampaignProvider({ children }: { children: React.ReactNode }) {
         if (mergedData.screeningQuestions && Array.isArray(mergedData.screeningQuestions) && mergedData.screeningQuestions.length > 0) {
           try {
             // Import screening questions API
-            const { createScreeningQuestion } = await import('./api-client');
+            const { getScreeningQuestions, createScreeningQuestion } = await import('./api-client');
             
             // Create root questions first
             const questionIdMap = new Map<string, string>();
             for (let i = 0; i < mergedData.screeningQuestions.length; i++) {
-              const q = mergedData.screeningQuestions[i] as { id?: string; text?: string; subQuestions?: Array<{ text?: string }> };
+              const q = mergedData.screeningQuestions[i] as any;
               if (q.text) {
                 const created = await createScreeningQuestion(newCampaign.id, {
                   campaign_id: newCampaign.id, // Required by backend model
@@ -186,7 +186,7 @@ export function CampaignProvider({ children }: { children: React.ReactNode }) {
             
             // Assign each team member to the campaign
             for (const member of mergedData.teamMembers) {
-              const memberId = (member as { id?: string }).id;
+              const memberId = (member as any).id;
               if (memberId) {
                 await assignTeamMemberToCampaign(newCampaign.id, memberId);
               }
@@ -229,7 +229,7 @@ export function CampaignProvider({ children }: { children: React.ReactNode }) {
       const campaign = await api.getCampaign(campaignId);
       
       // Load screening questions
-      let screeningQuestions: Array<{ id: string; text: string; subQuestions?: Array<{ id: string; text: string }> }> = [];
+      let screeningQuestions: any[] = [];
       try {
         const { getScreeningQuestions } = await import('./api-client');
         const backendQuestions = await getScreeningQuestions(campaignId);
@@ -247,7 +247,7 @@ export function CampaignProvider({ children }: { children: React.ReactNode }) {
       }
       
       // Load team members
-      let teamMembers: Array<{ id: string; name: string; designation: string; avatar: string }> = [];
+      let teamMembers: any[] = [];
       try {
         const { getCampaignTeamMembers } = await import('./api-client');
         const backendMembers = await getCampaignTeamMembers(campaignId);
