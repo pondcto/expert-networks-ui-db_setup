@@ -51,9 +51,10 @@ export default function TeamMembersPanel({
         const backendMembers = await api.getTeamMembers();
         const frontendMembers = backendMembers.map(convertBackendToFrontend);
         setAvailableMembers(frontendMembers);
-      } catch (error: any) {
+      } catch (error: unknown) {
         // If backend is not available, show empty list gracefully
-        if (error.message?.includes('Unable to connect') || error.message?.includes('Failed to fetch')) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (errorMessage?.includes('Unable to connect') || errorMessage?.includes('Failed to fetch')) {
           // Backend is offline - this is expected, just log a warning
           console.warn('Backend server appears to be offline. Team members will be unavailable.');
         } else {
@@ -136,9 +137,10 @@ export default function TeamMembersPanel({
             setCurrentMembers(frontendMembers);
             setInvitedMembers(new Set());
             onDataChange?.(frontendMembers);
-          } catch (error: any) {
+          } catch (error: unknown) {
             // If backend is not available, show empty list gracefully
-            if (error.message?.includes('Unable to connect') || error.message?.includes('Failed to fetch')) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            if (errorMessage?.includes('Unable to connect') || errorMessage?.includes('Failed to fetch')) {
               // Backend is offline - this is expected, just log a warning
               console.warn('Backend server appears to be offline. Campaign team members will be unavailable.');
             } else {
@@ -425,7 +427,7 @@ export default function TeamMembersPanel({
                 <div className="text-center py-8 text-light-text-secondary dark:text-dark-text-secondary">
                   {filterText ? (
                     <>
-                      <p className="mb-2">No team members found matching "{filterText}".</p>
+                      <p className="mb-2">No team members found matching &quot;{filterText}&quot;.</p>
                       <p className="text-sm">Try adjusting your search.</p>
                     </>
                   ) : (

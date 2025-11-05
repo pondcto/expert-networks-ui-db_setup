@@ -68,9 +68,10 @@ export default function SignupPage() {
         // Success - redirect to dashboard
         router.push('/dashboard');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Signup failed:', err);
-      setError(err.message || 'Failed to create account. Please try again.');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create account. Please try again.';
+      setError(errorMessage);
       setLoading(false);
     }
   };

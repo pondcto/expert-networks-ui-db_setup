@@ -50,7 +50,7 @@ export default function VendorSelectionPanel({
         const vendorsData = await api.getVendors();
         
         // Load enrolled vendors for this campaign if campaign exists
-        let enrollmentMap = new Map<string, string>(); // vendor_id -> status
+        const enrollmentMap = new Map<string, string>(); // vendor_id -> status
         if (campaignData?.id) {
           try {
             const enrollments = await api.getCampaignVendors(campaignData.id);

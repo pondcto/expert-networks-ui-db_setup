@@ -92,9 +92,10 @@ export default function ScreeningQuestionsPanel({
       let existingQuestions: api.ScreeningQuestion[] = [];
       try {
         existingQuestions = await api.getScreeningQuestions(campaignData.id);
-      } catch (error: any) {
+      } catch (error: unknown) {
         // If campaign doesn't have questions yet, that's fine - start with empty array
-        if (error.message?.includes('404') || error.message?.includes('not found')) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (errorMessage?.includes('404') || errorMessage?.includes('not found')) {
           existingQuestions = [];
         } else {
           throw error;
@@ -132,9 +133,10 @@ export default function ScreeningQuestionsPanel({
             display_order: i
           });
           questionIdMap.set(q.id, created.id);
-        } catch (error: any) {
+        } catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
           console.error(`Failed to create question "${q.text}":`, error);
-          throw new Error(`Failed to create question: ${error.message || error}`);
+          throw new Error(`Failed to create question: ${errorMessage}`);
         }
       }
       
@@ -160,9 +162,10 @@ export default function ScreeningQuestionsPanel({
                 parent_question_id: parentBackendId,
                 display_order: i
               });
-            } catch (error: any) {
+            } catch (error: unknown) {
+              const errorMessage = error instanceof Error ? error.message : String(error);
               console.error(`Failed to create sub-question "${sq.text}":`, error);
-              throw new Error(`Failed to create sub-question: ${error.message || error}`);
+              throw new Error(`Failed to create sub-question: ${errorMessage}`);
             }
           }
         }
@@ -173,7 +176,7 @@ export default function ScreeningQuestionsPanel({
       const frontendQuestions = convertBackendToFrontend(updatedQuestions);
       setCurrentQuestions(frontendQuestions);
       onDataChange?.(frontendQuestions);
-    } catch (error: any) {
+    } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error('Failed to save screening questions:', errorMessage, error);
       // Show user-friendly error message
