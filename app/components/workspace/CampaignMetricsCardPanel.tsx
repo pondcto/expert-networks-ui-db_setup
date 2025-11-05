@@ -40,7 +40,7 @@ export default function CampaignMetricsCardPanel() {
 
         setScheduledCount(scheduledResponse.total || 0);
         setCompletedCount(completedResponse.total || 0);
-        setCancelledCount(cancelledResponse.total || 0);
+        _setCancelledCount(cancelledResponse.total || 0);
       } catch (error) {
         console.error('Error loading campaign metrics:', error);
       } finally {
