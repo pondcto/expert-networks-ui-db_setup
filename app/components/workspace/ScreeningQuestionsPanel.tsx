@@ -64,7 +64,8 @@ export default function ScreeningQuestionsPanel({
           const backendQuestions = await api.getScreeningQuestions(campaignData.id);
           const frontendQuestions = convertBackendToFrontend(backendQuestions);
           setCurrentQuestions(frontendQuestions);
-          onDataChange?.(frontendQuestions);
+          // Don't call onDataChange when loading - it should only be called on user changes
+          // This prevents infinite loops when onDataChange triggers parent updates
         } catch (error) {
           console.error('Failed to load screening questions:', error);
           // If no questions exist yet, start with empty array
@@ -76,7 +77,8 @@ export default function ScreeningQuestionsPanel({
     };
     
     loadQuestions();
-  }, [campaignData?.id, isNewCampaign, editingQuestionId, convertBackendToFrontend, onDataChange]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [campaignData?.id, isNewCampaign, editingQuestionId, convertBackendToFrontend]);
 
   // Save questions to database - simplified version that replaces all questions
   const saveQuestionsToDatabase = async (questionsToSave: ScreeningQuestion[]) => {
