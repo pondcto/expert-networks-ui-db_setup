@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { GripVertical, GripHorizontal } from "lucide-react";
-import { useCampaign, CampaignData } from "../../lib/campaign-context";
+import { useCampaign } from "../../lib/campaign-context";
 import { useRouter, usePathname } from "next/navigation";
 import { WorkspaceHeader } from "../layout";
 import { PanelSizing } from "../../types";
@@ -41,39 +41,15 @@ export default function CampaignInterviewsWorkspace() {
   const setActivitiesWidth = (value: number) => setPanelSizing(prev => ({ ...prev, activitiesWidth: value }));
   const setSourcesWidth = (value: number) => setPanelSizing(prev => ({ ...prev, sourcesWidth: value }));
 
-  // Campaign data handlers
-  const _handleSaveCampaign = async () => {
-    try {
-      // Ensure all current form data is saved before proceeding
-      console.log('=== CAMPAIGN SAVE DEBUG ===');
-      console.log('Current campaign data before save:', campaignData);
-      
-      // Verify all required data fields are present
-      if (campaignData) {
-        console.log('Campaign Basics:', {
-          campaignName: campaignData.campaignName,
-          projectCode: campaignData.projectCode,
-          industryVertical: campaignData.industryVertical,
-          briefDescription: campaignData.briefDescription,
-          expandedDescription: campaignData.expandedDescription
-        });
-        console.log('Campaign Scope:', {
-          targetRegions: campaignData.targetRegions,
-          startDate: campaignData.startDate,
-          targetCompletionDate: campaignData.targetCompletionDate,
-          estimatedCalls: campaignData.estimatedCalls
-        });
-        console.log('Team Members:', campaignData.teamMembers);
-        console.log('Screening Questions:', campaignData.screeningQuestions);
-        console.log('Selected Vendors:', campaignData.selectedVendors);
-      }
-      
-      const campaignId = await saveCampaign();
-      router.push(`/campaign/${campaignId}/experts`);
-    } catch (error) {
-      console.error('Failed to save campaign:', error);
-    }
-  };
+  // Campaign data handlers (kept for future use)
+  // const _handleSaveCampaign = async () => {
+  //   try {
+  //     const campaignId = await saveCampaign();
+  //     router.push(`/campaign/${campaignId}/experts`);
+  //   } catch (error) {
+  //     console.error('Failed to save campaign:', error);
+  //   }
+  // };
 
   // Get campaign name for display
   const getCampaignName = () => {

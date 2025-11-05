@@ -31,11 +31,12 @@ export default function CampaignMetricsCardPanel() {
         setScheduling(scheduling);
 
         // Load interview counts by status
-        const [scheduledResponse, completedResponse, cancelledResponse] = await Promise.all([
+        const [scheduledResponse, completedResponse] = await Promise.all([
           api.getInterviews({ campaign_id: campaignData.id, status: 'scheduled' }),
-          api.getInterviews({ campaign_id: campaignData.id, status: 'completed' }),
-          api.getInterviews({ campaign_id: campaignData.id, status: 'cancelled' })
+          api.getInterviews({ campaign_id: campaignData.id, status: 'completed' })
         ]);
+        // cancelledResponse is not currently displayed in the UI
+        // const cancelledResponse = await api.getInterviews({ campaign_id: campaignData.id, status: 'cancelled' });
 
         setScheduledCount(scheduledResponse.total || 0);
         setCompletedCount(completedResponse.total || 0);

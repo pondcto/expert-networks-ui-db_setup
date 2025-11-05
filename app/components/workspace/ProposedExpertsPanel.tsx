@@ -43,8 +43,9 @@ interface ProposedExpertsPanelProps {
 export default function ProposedExpertsPanel({ onExpertSelect, selectedExpertId, onExpertsChange }: ProposedExpertsPanelProps) {
   const { campaignData } = useCampaign();
   const [experts, setExperts] = useState<ProposedExpert[]>([]);
-  const [selectedExperts, setSelectedExperts] = useState<Set<string>>(new Set());
-  const [selectAll, setSelectAll] = useState(false);
+  // Selection state kept for future use
+  // const [selectedExperts, setSelectedExperts] = useState<Set<string>>(new Set());
+  // const [selectAll, setSelectAll] = useState(false);
 
   // Load vendors
   const { data: vendors } = useApi(api.getVendors);

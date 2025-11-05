@@ -33,7 +33,8 @@ export default function VendorSelectionPanel({
 }: VendorSelectionPanelProps) {
   const { isNewCampaign, campaignData } = useCampaign();
   const [vendors, setVendors] = useState<VendorPlatform[]>([]);
-  const [enrolledVendors, setEnrolledVendors] = useState<Set<string>>(new Set());
+  // enrolledVendors state kept for future use
+  // const [enrolledVendors, setEnrolledVendors] = useState<Set<string>>(new Set());
   const [showVendorDetailsModal, setShowVendorDetailsModal] = useState<boolean>(false);
   const [selectedVendor, setSelectedVendor] = useState<VendorPlatform | null>(null);
   const [showEnrollmentModal, setShowEnrollmentModal] = useState<boolean>(false);
@@ -92,7 +93,8 @@ export default function VendorSelectionPanel({
         });
 
         setVendors(vendorPlatforms);
-        setEnrolledVendors(new Set(enrollmentMap.keys()));
+        // enrolledVendors is set but not currently used in the UI
+        // setEnrolledVendors(new Set(enrollmentMap.keys()));
       } catch (error) {
         console.error('Error loading vendors:', error);
         setVendors([]);
@@ -128,7 +130,7 @@ export default function VendorSelectionPanel({
           enrollmentMap.set(e.vendor_platform_id, e.status);
         });
         
-        setEnrolledVendors(new Set(enrollmentMap.keys()));
+        // setEnrolledVendors(new Set(enrollmentMap.keys()));
         setVendors(prev => prev.map(v => {
           if (v.id === vendorToEnroll.id) {
             const enrollmentStatus = enrollmentMap.get(v.id);

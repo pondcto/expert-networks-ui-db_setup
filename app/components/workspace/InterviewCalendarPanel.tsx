@@ -15,7 +15,7 @@ import {
   isBefore,
   getTimeSlotPosition
 } from "../../utils/dateUtils";
-import { COLOR_TAGS, COLOR_DOTS, type ColorTag } from "../../utils/constants";
+import { COLOR_TAGS, type ColorTag } from "../../utils/constants";
 import { formatTime } from "../../utils/formatting";
 import { Interview } from "../../types";
 import { useCampaign } from "../../lib/campaign-context";
@@ -92,6 +92,9 @@ export default function InterviewCalendarPanel() {
   });
 
   const interviews = data?.interviews || [];
+  
+  // Memoize interviews to avoid dependency issues in useCallback
+  const memoizedInterviews = useMemo(() => interviews, [interviews]);
 
   const weekStart = useMemo(() => startOfWeek(currentWeek, { weekStartsOn: 0 }), [currentWeek]);
   const weekDays = useMemo(() => generateWeekDays(currentWeek), [currentWeek]);
@@ -101,9 +104,8 @@ export default function InterviewCalendarPanel() {
   }, [currentWeek]);
 
   const getInterviewsForDay = useCallback((date: Date): Interview[] => {
-    return interviews.filter(interview => isSameDay(interview.date, date));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [interviews]);
+    return memoizedInterviews.filter(interview => isSameDay(interview.date, date));
+  }, [memoizedInterviews]);
 
   const isPastDay = useCallback((date: Date): boolean => {
     const today = startOfDay(new Date());

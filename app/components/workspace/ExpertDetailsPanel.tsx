@@ -56,6 +56,7 @@ export default function ExpertDetailsPanel({ selectedExpert, expert, hasExperts 
     communication: 0
   });
   const [reviewText, setReviewText] = useState("");
+  const [showReviews] = useState(true); // Always show reviews section
   // Default expert data (John Doe from the image)
   const defaultExpert = {
     name: "John Doe",
@@ -194,7 +195,7 @@ export default function ExpertDetailsPanel({ selectedExpert, expert, hasExperts 
 
   const handlePostRating = () => {
     // Handle posting the rating
-    console.log("Posting rating:", { ratings, reviewText, sameInternalPublic });
+    console.log("Posting rating:", { ratings, reviewText });
     setShowReviewModal(false);
     // Reset form
     setRatings({ relevance: 0, expertise: 0, communication: 0 });

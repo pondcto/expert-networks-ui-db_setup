@@ -63,7 +63,7 @@ export default function SchedulingPipelinePanel() {
     }, [campaignData?.id]);
 
     // Get scheduling status based on whether interview is scheduled
-    const getSchedulingStatus = (expertId: string): "Scheduled" | "Pending" => {
+    const getSchedulingStatus = (_expertId: string): "Scheduled" | "Pending" => {
         // This can be enhanced to check actual interview status from API
         return "Pending";
     };
