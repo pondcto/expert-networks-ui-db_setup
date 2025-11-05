@@ -57,11 +57,18 @@ async function handleResponse<T>(response: Response): Promise<T> {
           errorData = JSON.parse(responseText);
           
           // Try to extract error message from various fields
-          const extracted = extractString(errorData.detail) || 
-                           extractString(errorData.message) || 
-                           extractString(errorData.error) || 
-                           extractString(errorData.msg) ||
-                           extractString(errorData);
+          // errorData is unknown, so we need to check if it's an object first
+          let extracted: string | null = null;
+          if (typeof errorData === 'object' && errorData !== null) {
+            const obj = errorData as Record<string, unknown>;
+            extracted = extractString(obj.detail) || 
+                       extractString(obj.message) || 
+                       extractString(obj.error) || 
+                       extractString(obj.msg) ||
+                       extractString(errorData);
+          } else {
+            extracted = extractString(errorData);
+          }
           
           if (extracted && extracted.trim()) {
             errorMessage = extracted;
